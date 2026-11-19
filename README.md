@@ -5,6 +5,70 @@
 ## Banners
 Os comandos vigia, oraculo, bastiao e selo mostram suas artes em UTF-8 antes do resultado. As artes ficam em `banners/`. No terminal interativo, azul e laranja usam ANSI truecolor; em saída redirecionada ou na GUI Python, são exibidas sem códigos de escape. No Android, as cores são aplicadas ao texto e há rolagem horizontal. A fonte e a largura da tela podem afetar o alinhamento dos caracteres Braille; o resultado no Android ainda precisa ser verificado em aparelho. As três artes em Braille foram transcritas da conversa e precisam de conferência visual contra os originais.
 
+## Instalar ferramentas do Termux pela Store (Android)
+
+O pacote `dev-tools` prepara **o app Termux**, não instala Git/Python dentro do APK Satanachia. No Android, cada app fica isolado. É necessário ter o Termux oficial instalado e inicializado; o pacote não inclui nem instala o bootstrap do Termux. Se ainda não tiver Termux, instale-o por uma fonte oficial (F-Droid ou GitHub oficial), abra-o uma vez e conclua a configuração inicial.
+
+### 1. Criar uma pasta compartilhada no Satanachia
+
+No APK Satanachia, conceda acesso ao armazenamento compartilhado quando o Android solicitar ou pelo botão de acesso a arquivos do app. Depois, execute uma linha por vez:
+
+```text
+cd /storage/emulated/0/
+make ncroxpack
+cd /storage/emulated/0/ncroxpack
+satanachia -pick dev-tools
+satanachia -st dev-tools
+```
+
+`make ncroxpack` cria a pasta compartilhada; os dois comandos `satanachia` baixam `dev-tools.zip` da pasta `store/` deste repositório e o extraem em `/storage/emulated/0/ncroxpack/dev-tools/`. Se `cd /storage/emulated/0/` falhar ou não listar/criar a pasta, primeiro conceda ao Satanachia a permissão de acesso aos arquivos compartilhados. Não use a pasta privada do app: o Termux não consegue ler os arquivos privados do Satanachia.
+
+### 2. Autorizar o armazenamento compartilhado no Termux
+
+Abra o app Termux oficial e execute:
+
+```sh
+termux-setup-storage
+```
+
+Aceite a permissão de arquivos solicitada pelo Android. Esse comando configura no Termux o atalho `~/storage/shared`, que aponta para o armazenamento compartilhado do aparelho. Pode ser executado no diretório inicial do Termux; em seguida, entre na pasta criada pelo Satanachia:
+
+```sh
+cd ~/storage/shared/ncroxpack/dev-tools
+ls
+```
+
+Deve aparecer `install_termux.sh` e `LEIA-ME.txt`. O caminho Android equivalente é `/storage/emulated/0/ncroxpack/dev-tools`.
+
+### 3. Instalar os pacotes selecionados
+
+Ainda no Termux, rode:
+
+```sh
+bash install_termux.sh
+```
+
+O instalador verifica que está no Termux, atualiza os índices de pacotes e pergunta se você quer atualizar os pacotes existentes. Depois, oferece categorias: conjunto básico, rede/diagnóstico, linguagens de desenvolvimento, ferramentas de terminal/arquivos ou todas as categorias oferecidas pelo script. Leia a lista e confirme; o `pkg` instala pacotes dos repositórios configurados no Termux. A opção “todas” significa todas as categorias incluídas neste pacote, **não todos os pacotes existentes no enorme catálogo do Termux**.
+
+O conjunto básico inclui Git, Python, pip, Nano, Go, Clang, make, cmake, wget, curl, `which` e OpenSSH. As categorias opcionais incluem ferramentas como nmap, netcat, ferramentas DNS/IP, Node.js, Ruby, Perl, PHP, Rust, Vim, tmux, tree, jq, ripgrep, fd, rsync e utilitários ZIP/TAR. O instalador também cria um ambiente Python virtual em `~/.venvs/ncrox-tools` e instala nele BeautifulSoup (`beautifulsoup4`, importado como `bs4`). Para ativá-lo:
+
+```sh
+source ~/.venvs/ncrox-tools/bin/activate
+python -c 'from bs4 import BeautifulSoup; print("BeautifulSoup OK")'
+deactivate
+```
+
+`urllib` já faz parte da biblioteca padrão do Python; não é preciso instalar um pacote `urllib` separado. O comando `which` é o pacote `which` do Termux.
+
+### Limites importantes
+
+- Se o Termux/bootstrap ainda não estiver instalado, este pacote não pode instalá-lo por dentro do Satanachia: instale e inicialize o app Termux oficial primeiro.
+- Se o instalador disser que precisa rodar dentro do Termux, confirme que abriu o app Termux e que `PREFIX`/`pkg` estão disponíveis; não execute o script no APK Satanachia.
+- Git, Python, Nano, Go e demais ferramentas ficam no ambiente Termux. A instalação **não os torna disponíveis automaticamente ao APK Satanachia**; `pick` no APK só funciona se Git estiver acessível ao app, o que não é garantido.
+- `termux-setup-storage` dá acesso ao Termux ao armazenamento compartilhado conforme a permissão Android, mas não abre dados privados de outros apps.
+- Os nomes e a disponibilidade dos pacotes dependem da arquitetura, da versão do Termux e dos repositórios habilitados. O instalador pede confirmação antes da instalação.
+- Senha convencional do ZIP da Store: `dev-toolsncrox`. A senha previsível não é proteção criptográfica forte; confira os arquivos e a origem antes de executar o instalador.
+
 ## Comandos do terminal
 `help` lista os comandos próprios. Não existe listagem portátil de absolutamente todos os comandos: built-ins do shell e ferramentas disponíveis variam conforme o aparelho e permissões. No Android, `command -v <nome>` verifica uma ferramenta específica.
 
@@ -46,4 +110,4 @@ Outros comandos da versão Python (não do APK):
 ## Permissões e limitações
 O Android pergunta por câmera/localização e usa configuração especial para acesso amplo aos arquivos. `QUERY_ALL_PACKAGES` e `MANAGE_EXTERNAL_STORAGE` são sensíveis; este APK é experimental/sideload e exige avaliação de política antes de publicação em loja. Android não oferece root, memória por processo ou encerramento arbitrário a apps comuns. Permissão de arquivos compartilhados não permite ler dados privados de outros aplicativos. Downloads de ferramentas são pacotes de terceiros do repositório e devem ser revisados antes de uso; a extração não executa arquivos.
 
-No momento, `store/` contém só `readme.md`, sem ZIPs; por isso `satanachia -store` responde `loja vazia` até que ferramentas `.zip` sejam adicionadas.
+A Store atualmente inclui `dev-tools.zip`, pacote de utilitários para Termux descrito acima, além de `readme.md`. Use `satanachia -store` para consultar os ZIPs publicados no momento; os pacotes disponíveis podem mudar.
