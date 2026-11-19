@@ -32,7 +32,7 @@ public class MainActivity extends Activity {
     cwd = chooseStartDir();
     layout = new LinearLayout(this); layout.setOrientation(LinearLayout.VERTICAL); layout.setBackgroundColor(Color.rgb(8,11,8)); layout.setPadding(14,10,14,10);
     TextView title = new TextView(this); title.setText("SATANACHIA  •  NCROX"); title.setTextColor(green); title.setTextSize(17); title.setTypeface(Typeface.MONOSPACE,Typeface.BOLD); title.setPadding(4,8,4,8); layout.addView(title);
-    accessButton = new Button(this); accessButton.setText("Permitir acesso ao armazenamento compartilhado"); accessButton.setTextAllCaps(false); accessButton.setOnClickListener(v -> requestFileAccess()); layout.addView(accessButton);
+    accessButton = new Button(this); accessButton.setText("Permitir acesso ao armazenamento compartilhado"); accessButton.setAllCaps(false); accessButton.setOnClickListener(v -> requestFileAccess()); layout.addView(accessButton);
     ScrollView scroll = new ScrollView(this); output = new TextView(this); output.setText(intro + accessStatus() + "\n\n"); output.setTextColor(green); output.setTextSize(14); output.setTypeface(Typeface.MONOSPACE); output.setTextIsSelectable(true); scroll.addView(output); layout.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
     input = new EditText(this); input.setSingleLine(true); input.setTextColor(green); input.setHintTextColor(Color.GRAY); input.setHint("comando…"); input.setTypeface(Typeface.MONOSPACE); input.setImeOptions(EditorInfo.IME_ACTION_DONE); input.setBackgroundTintList(android.content.res.ColorStateList.valueOf(green)); layout.addView(input,new LinearLayout.LayoutParams(-1,-2));
     input.setOnEditorActionListener((v,action,event)->{ submit(); return true; });
