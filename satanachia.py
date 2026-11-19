@@ -24,11 +24,11 @@ def tree(path=".", max_depth=8):
         try:
             entries = sorted(folder.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
         except PermissionError:
-            lines.append(prefix + "└── [sem permissão]")
+            lines.append(prefix + "╰── [sem permissão]")
             return
         for i, item in enumerate(entries):
             last = i == len(entries) - 1
-            lines.append(prefix + ("└── " if last else "├── ") + item.name + ("/" if item.is_dir() else ""))
+            lines.append(prefix + ("╰── " if last else "──╮─ ") + item.name + ("/" if item.is_dir() else ""))
             if item.is_dir() and not item.is_symlink():
                 walk(item, prefix + ("    " if last else "│   "), depth + 1)
     walk(root)
@@ -41,7 +41,7 @@ class Shell:
         self.system = platform.system().lower()
 
     def prompt(self):
-        return f"{self.cwd} $ "
+        return "0───────~$[ "
 
     def run(self, raw):
         raw = raw.strip()
