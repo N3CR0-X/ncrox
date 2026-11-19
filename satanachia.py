@@ -200,7 +200,7 @@ def gui():
     root.mainloop()
 
 if __name__ == "__main__":
-    if "--gui" in sys.argv:
+    if "--gui" in sys.argv or getattr(sys, "frozen", False):
         gui()
     else:
         cli()
