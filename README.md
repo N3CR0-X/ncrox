@@ -7,3 +7,6 @@ O Android pode pedir acesso a arquivos compartilhados nas Configurações do sis
 O app inicia um serviço Android em primeiro plano com notificação persistente para continuar ativo em segundo plano. Wake lock é opcional e fica desligado por padrão: tecla `LOCK` ou comando `acquire lock` liga; `release lock` desliga. Wake lock gasta bateria. O Android ainda pode interromper o serviço em force-stop ou por políticas do fabricante.
 
 Comandos: `pwd`, `cd`, `make`, `tree`, `pick`, `net faces`, `acquire lock`, `release lock` e comandos disponíveis em `/system/bin/sh`. APK não é Termux: não tem root, gerenciador de pacotes Linux, nem todas as ferramentas. A permissão de arquivos compartilhados não permite ler dados privados de outros apps. Não inclui extração de credenciais nem módulos de intrusão.
+
+## `readmd`
+Use `readmd nome.md` para imprimir no terminal o conteúdo completo de um arquivo Markdown como texto puro, sem renderizar a formatação. O caminho pode ser relativo ao diretório atual ou absoluto; o arquivo precisa terminar em `.md`.
