@@ -20,7 +20,7 @@ import java.util.concurrent.Executors;
 public class MainActivity extends Activity {
   private TextView output;
   private EditText input;
-  private Button accessButton, lockButton;
+  private Button accessButton;
   private ScrollView scroll;
   private final ExecutorService worker = Executors.newSingleThreadExecutor();
   private File cwd;
@@ -40,9 +40,6 @@ public class MainActivity extends Activity {
     scroll = new ScrollView(this); output = new TextView(this); output.setTextColor(green); output.setTextSize(14); output.setTypeface(Typeface.MONOSPACE); output.setTextIsSelectable(true); output.setPadding(2,2,2,4); scroll.addView(output); page.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
 
     accessButton = new Button(this); accessButton.setText("Conceder acesso aos arquivos"); accessButton.setAllCaps(false); accessButton.setOnClickListener(v -> requestFileAccess()); page.addView(accessButton);
-    LinearLayout lockRow = new LinearLayout(this); lockRow.setOrientation(LinearLayout.HORIZONTAL);
-    lockButton = new Button(this); lockButton.setAllCaps(false); lockButton.setOnClickListener(v -> toggleWakeLock()); lockRow.addView(lockButton,new LinearLayout.LayoutParams(-1,-2)); page.addView(lockRow);
-
     LinearLayout keys1 = new LinearLayout(this); keys1.setOrientation(LinearLayout.HORIZONTAL);
     addKey(keys1,"ESC",()->insert("\u001b")); addKey(keys1,"TAB",this::submit); addKey(keys1,"CTRL",()->controlNext=!controlNext); addKey(keys1,"ALT",()->insert("\u001b")); addKey(keys1,"↑",()->historyMove(-1)); addKey(keys1,"HOME",()->moveCursor(false)); addKey(keys1,"END",()->moveCursor(true)); page.addView(keys1);
     LinearLayout keys2 = new LinearLayout(this); keys2.setOrientation(LinearLayout.HORIZONTAL);
@@ -63,7 +60,7 @@ public class MainActivity extends Activity {
     showPrompt();
   }
   private void addKey(LinearLayout row,String label,Runnable action){
-    Button b=new Button(this); b.setText(label); b.setTextSize(10); b.setAllCaps(false); b.setPadding(0,0,0,0); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,42,1); lp.setMargins(1,0,1,2); row.addView(b,lp); b.setOnClickListener(v->action.run());
+    Button b=new Button(this); b.setText(label); b.setTextSize(10); b.setTextColor(green); b.setAllCaps(false); b.setPadding(0,0,0,0); b.setMinHeight(0); b.setMinimumHeight(0); b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(24,28,24))); LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(0,38,1); lp.setMargins(1,0,1,2); row.addView(b,lp); b.setOnClickListener(v->action.run());
   }
   private void startKeepAliveService(){
     Intent i=new Intent(this,TerminalService.class); i.setAction(TerminalService.ACTION_START);
@@ -75,8 +72,6 @@ public class MainActivity extends Activity {
     if(accessButton==null)return;
     accessButton.setVisibility(hasFileAccess()?android.view.View.GONE:android.view.View.VISIBLE);
     if(hasFileAccess())cwd=Environment.getExternalStorageDirectory();
-    boolean locked=getSharedPreferences("ncrox",MODE_PRIVATE).getBoolean("wake_lock",false);
-    lockButton.setText(locked?"Wake lock: ligado":"Wake lock: desligado");
   }
   private void requestFileAccess(){ if(Build.VERSION.SDK_INT>=30){try{startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,Uri.parse("package:"+getPackageName())));}catch(Exception e){startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));}} }
   private void toggleWakeLock(){boolean old=getSharedPreferences("ncrox",MODE_PRIVATE).getBoolean("wake_lock",false); boolean now=!old;getSharedPreferences("ncrox",MODE_PRIVATE).edit().putBoolean("wake_lock",now).apply();Intent i=new Intent(this,TerminalService.class);i.setAction(now?TerminalService.ACTION_LOCK:TerminalService.ACTION_UNLOCK);if(Build.VERSION.SDK_INT>=26)startForegroundService(i);else startService(i);refreshPermissionsAndButtons();}
@@ -92,7 +87,7 @@ public class MainActivity extends Activity {
       String[] a=command.trim().split("\\s+");String c=a[0];
       if(c.equals("exit")||c.equals("quit"))return "";
       if(c.equals("help")||c.equals("ajuda"))return "Atalhos: pwd, cd, make, tree, pick, net faces, acquire lock, release lock. Tab envia o comando. Outros comandos são do Android.";
-      if(c.equals("clear")||c.equals("cls")){runOnUiThread(()->{output.setText("");showPrompt();});return "";}
+      if(c.equals("clear")||c.equals("cls")){runOnUiThread(()->output.setText(""));return "";}
       if(c.equals("pwd"))return cwd.getAbsolutePath();
       if(c.equals("cd")){File f=a.length>1?new File(cwd,a[1]):chooseStartDir();if(f.isDirectory()){cwd=f.getCanonicalFile();return "";}return "cd: diretório inválido";}
       if(c.equals("make")||c.equals("mkdir")){if(a.length<2)return "Uso: make [-p] pasta";boolean parents=false;String name=a[a.length-1];for(String x:a)if(x.equals("-p")||x.equals("--parents"))parents=true;File f=new File(cwd,name);boolean ok=parents?f.mkdirs():f.mkdir();return ok?"": "make: não foi possível criar diretório";}
