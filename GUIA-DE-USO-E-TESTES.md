@@ -1,6 +1,6 @@
 # Guia de uso e plano de testes — Satanachia ncrox
 
-Este guia vale para o código atual do repositório. As funções variam entre o programa Python (Windows/Linux/macOS/Termux) e o APK Android. Use os comandos no campo de entrada do ncrox; no APK, envie com **TAB** ou Enter conforme a versão/interface. `help` mostra a ajuda disponível naquele build.
+Este guia vale para o código atual do repositório. As funções variam entre o programa Python (Windows/Linux/macOS/Termux) e o APK Android. Use os comandos no campo de entrada do ncrox; no APK deste projeto, envie com o botão **ENVIAR** ou pela tecla **Enter**. `help` mostra a ajuda disponível naquele build.
 
 ## 1. Abrir o Satanachia
 
