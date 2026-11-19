@@ -1,0 +1,58 @@
+name: Build Android APK and Windows EXE
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Build APK
+        working-directory: android
+        run: gradle --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: satanachia-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip pyinstaller
+          pyinstaller --noconfirm --clean --onefile --windowed --name Satanachia-ncrox --icon icon.ico --add-data "icon.png;." satanachia.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: satanachia-windows-exe
+          path: dist/Satanachia-ncrox.exe
+          if-no-files-found: error
+  release:
+    needs: [android, windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish downloadable release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --title "Satanachia ncrox ${TAG}" --notes "Builds automáticos do APK e EXE. O APK executa no sandbox do app Android; o EXE executa no Windows."
