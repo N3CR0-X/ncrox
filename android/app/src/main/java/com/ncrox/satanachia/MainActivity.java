@@ -65,7 +65,7 @@ public class MainActivity extends Activity {
   @Override protected void onResume(){super.onResume();refreshAccessButton();}
   private void submit() {
     String cmd=input.getText().toString().trim(); input.setText(""); if(cmd.isEmpty()) return;
-    output.append(cwd.getAbsolutePath()+" $ "+cmd+"\n");
+    output.append("0───────~$[ "+cmd+"\n");
     worker.execute(()->{ String result=run(cmd); runOnUiThread(()->{ if(!result.isEmpty()) output.append(result+"\n"); ((ScrollView)output.getParent()).post(()->((ScrollView)output.getParent()).fullScroll(ScrollView.FOCUS_DOWN)); }); });
   }
   private String run(String command) {
@@ -95,7 +95,7 @@ public class MainActivity extends Activity {
   }
   private void tree(File dir,String prefix,StringBuilder b,int depth) {
     if(depth>=7)return; File[] files=dir.listFiles(); if(files==null)return; java.util.Arrays.sort(files,(x,y)->Boolean.compare(!x.isDirectory(),!y.isDirectory()));
-    for(int i=0;i<files.length&&i<150;i++){File f=files[i];boolean last=i==files.length-1;b.append("\n").append(prefix).append(last?"└── ":"├── ").append(f.getName()).append(f.isDirectory()?"/":""); if(f.isDirectory())tree(f,prefix+(last?"    ":"│   "),b,depth+1);}
+    for(int i=0;i<files.length&&i<150;i++){File f=files[i];boolean last=i==files.length-1;b.append("\n").append(prefix).append(last?"╰── ":"──╮─ ").append(f.getName()).append(f.isDirectory()?"/":""); if(f.isDirectory())tree(f,prefix+(last?"    ":"│   "),b,depth+1);}
   }
   @Override protected void onDestroy(){worker.shutdownNow();super.onDestroy();}
 }
