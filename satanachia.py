@@ -57,7 +57,7 @@ class Shell:
         if cmd in ("exit", "quit", "sair"):
             raise SystemExit
         if cmd in ("help", "ajuda"):
-            return ("Comandos ncrox: help, clear, pwd, cd [pasta], make [opções] pasta, "
+            return ("Comandos ncrox: help, clear, pwd, readmd <arquivo.md>, cd [pasta], make [opções] pasta, "
                     "tree [pasta], pick <URL-ou-usuario/repo>, net faces, net faces -root, "
                     "net -show -all.\nOs demais comandos são executados pelo shell do sistema, "
                     "no diretório atual. Use apenas comandos e arquivos que você confia.")
@@ -65,6 +65,22 @@ class Shell:
             return "\x1b[2J\x1b[H"
         if cmd == "pwd":
             return str(self.cwd)
+        if cmd == "readmd":
+            if not rest:
+                return "Uso: readmd <arquivo.md>"
+            target = Path(rest[0]).expanduser()
+            if not target.is_absolute():
+                target = self.cwd / target
+            if target.suffix.lower() != ".md":
+                return "readmd: o arquivo precisa ter extensão .md"
+            try:
+                return target.read_text(encoding="utf-8")
+            except FileNotFoundError:
+                return f"readmd: arquivo não encontrado: {target}"
+            except UnicodeDecodeError:
+                return "readmd: não consegui ler o arquivo como texto UTF-8"
+            except OSError as e:
+                return f"readmd: {e}"
         if cmd == "cd":
             target = Path(rest[0]).expanduser() if rest else Path.home()
             if not target.is_absolute():
