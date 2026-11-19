@@ -1,5 +1,7 @@
 # Satanachia ncrox — comandos próprios e ambiente local
 
+**Começando e testando?** Veja o [Guia de uso e plano de testes](GUIA-DE-USO-E-TESTES.md), com comandos de exemplo, permissões Android e teste de clone Git pelo atalho `pick`.
+
 ## Banners
 Os comandos vigia, oraculo, bastiao e selo mostram suas artes em UTF-8 antes do resultado. As artes ficam em `banners/`. No terminal interativo, azul e laranja usam ANSI truecolor; em saída redirecionada ou na GUI Python, são exibidas sem códigos de escape. No Android, as cores são aplicadas ao texto e há rolagem horizontal. A fonte e a largura da tela podem afetar o alinhamento dos caracteres Braille; o resultado no Android ainda precisa ser verificado em aparelho. As três artes em Braille foram transcritas da conversa e precisam de conferência visual contra os originais.
 
