@@ -1,4 +1,5 @@
 import os, tempfile, unittest
+from unittest.mock import patch
 from pathlib import Path
 from satanachia import Shell
 
@@ -21,6 +22,19 @@ class BasicTests(unittest.TestCase):
         self.assertEqual(self.shell.run('readmd azure.md'), '# Azure\n\nÉ uma ferramenta.')
         self.assertIn('extensão .md', self.shell.run('readmd azure.txt'))
         self.assertIn('Uso: readmd', self.shell.run('readmd'))
+    def test_docs_lists_extension(self):
+        (Path(self.tmp.name) / 'archive.zip').write_bytes(b'zip')
+        self.assertIn('archive.zip', self.shell.run('docs -zip'))
+    def test_store_empty_and_lookup_case_insensitive(self):
+        with patch.object(self.shell, '_store_files', return_value=[]):
+            self.assertEqual(self.shell.run('satanachia -store'), 'loja vazia')
+            self.assertEqual(self.shell.run('satanachia -pick Azure'), 'loja vazia')
+    def test_tasklist_requires_confirmation(self):
+        self.assertIn('(s/n)', self.shell.run('tasklist -sudozi'))
+        with patch.object(self.shell, '_process_list', return_value='process list'):
+            self.assertEqual(self.shell.run('n'), 'Operação cancelada.')
+            self.shell.run('tasklist -sudozi')
+            self.assertEqual(self.shell.run('s'), 'process list')
     def test_real_shell(self):
         out = self.shell.run('python3 -c "print(123)"')
         self.assertIn('123', out)
