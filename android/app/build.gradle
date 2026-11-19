@@ -3,6 +3,8 @@ plugins { id 'com.android.application' }
 android {
     namespace 'com.ncrox.satanachia'
     compileSdk 35
+    // Os mesmos banners/ UTF-8 usados no Python são empacotados como assets.
+    sourceSets { main { assets.srcDir "$rootDir/../banners" } }
     defaultConfig {
         applicationId 'com.ncrox.satanachia'
         minSdk 30

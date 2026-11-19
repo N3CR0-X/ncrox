@@ -10,7 +10,11 @@ import urllib.request
 import json
 import zipfile
 import hashlib
+import shutil
 from pathlib import Path
+from ncrox_tools import github, local_command
+from ncrox_audit import command as audit_command
+from ncrox_banners import banner
 
 APP = "Satanachia ncrox"
 
@@ -40,7 +44,8 @@ def tree(path=".", max_depth=8):
 
 
 class Shell:
-    def __init__(self):
+    def __init__(self, color_banners=False):
+        self.color_banners = color_banners
         self.cwd = Path.cwd()
         self.system = platform.system().lower()
         self.pending_install = None
@@ -70,6 +75,22 @@ class Shell:
             if answer not in ("s", "sim", "y", "yes"):
                 return "Operação cancelada."
             return self._process_list()
+        # Operators belong to the system shell, not our built-in command parser.
+        # Respect quotes and backslash escapes when detecting them.
+        quote = None
+        escaped = False
+        for char in raw:
+            if escaped:
+                escaped = False
+            elif char == "\\" and quote != "'":
+                escaped = True
+            elif quote:
+                if char == quote:
+                    quote = None
+            elif char in "'\"":
+                quote = char
+            elif char in "|&;<>\n":
+                return self._exec_raw(raw)
         try:
             args = shlex.split(raw, posix=(os.name != "nt"))
         except ValueError as e:
@@ -80,10 +101,25 @@ class Shell:
         if cmd in ("exit", "quit", "sair"):
             raise SystemExit
         if cmd in ("help", "ajuda"):
-            return ("NCROX: help, clear, pwd, cd, make, tree, pick, readmd, docs -<ext>, applist [-sudozi|-apk], "
-                    "tasklist [-sudozi], taskkill -sudozi <processo>, flash, avrcp, ondeuto -ip|-info, ip a, ifconfig, "
-                    "say, open -a <app>, satanachia -store|-pick|-st.\nExecutáveis detectados em PATH: " +
-                    self.available_commands() + "\nNem todo comando existe em todo sistema; comandos internos do shell podem não aparecer.")
+            return ("NCROX: help, clear, pwd, cd, make, tree, pick, readmd, docs -<ext>, applist, "
+                    "tasklist, taskkill, net, say, open, satanachia.\n"
+                    "Utilidades: hash <arquivo>, disk [caminho], sysinfo, which|where <comando>, "
+                    "findtext <texto> <arquivo>, fileinfo <caminho>, netcheck <host> <porta>, uuid, "
+                    "github repo|issues|releases <dono/repo>, github user <usuário>.\n"
+                    "Auditoria autorizada: vigia <host> [portas], oraculo <domínio>, "
+                    "bastiao <host> [porta], selo <arquivo> [sha256].\n"
+                    "Extras: rede <IP/CIDR>, base64 codificar|decodificar <texto>, "
+                    "urlinfo <URL>, jsoncheck <arquivo>, comparar <arquivo1> <arquivo2>.\n"
+                    "Outros comandos usam o shell local e seus programas instalados; disponibilidade e permissões variam.")
+        result = audit_command(cmd, rest, self.cwd)
+        if result is not None:
+            art = banner(cmd, self.color_banners)
+            return art + ('' if art.endswith('\n') else '\n') + result if art else result
+        if cmd == "github":
+            return github(rest)
+        result = local_command(cmd, rest, self.cwd)
+        if result is not None:
+            return result
         if cmd in ("clear", "cls", "limpar"):
             return "\x1b[2J\x1b[H"
         if cmd == "pwd":
@@ -111,13 +147,23 @@ class Shell:
             if not target.is_absolute(): target = self.cwd / target
             try: target.mkdir(parents=parents, exist_ok=parents); return f"Pasta criada: {target}"
             except Exception as e: return f"make: {e}"
-        if cmd in ("tree", "ls"):
-            return tree(rest[0] if rest else self.cwd)
+        if cmd == "tree":
+            if len(rest) > 1: return "Uso: tree [pasta]"
+            target = Path(rest[0]).expanduser() if rest else self.cwd
+            return tree(target if target.is_absolute() else self.cwd / target)
         if cmd == "pick":
-            if not rest: return "Uso: pick <URL-do-repositório ou usuario/repo>"
+            if not 1 <= len(rest) <= 2: return "Uso: pick <URL-do-repositório ou usuario/repo> [destino]"
             repo = rest[0]
-            if "://" not in repo and not repo.startswith("git@"): repo = "https://github.com/" + repo.removesuffix(".git") + ".git"
-            return self._exec(["git", "clone", repo, *rest[1:]])
+            if repo.startswith('-') or (len(rest) == 2 and rest[1].startswith('-')):
+                return "pick: opções não são aceitas."
+            if "://" not in repo and not repo.startswith("git@"):
+                import re
+                if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+', repo):
+                    return "pick: use usuario/repo ou URL Git."
+                repo = "https://github.com/" + repo.removesuffix(".git") + ".git"
+            if not (repo.startswith('https://') or repo.startswith('git@')):
+                return "pick: use HTTPS ou SSH no formato git@host:repo."
+            return self._exec(["git", "clone", "--", repo, *rest[1:]])
         if cmd == "net": return self._net(rest)
         if cmd == "ip" and rest[:1] == ["a"]: return self._net(["-show", "-all"])
         if cmd == "ifconfig": return self._net(["faces"])
@@ -277,9 +323,8 @@ class Shell:
         existing = next((x for x in self.cwd.iterdir() if x.name.lower() == target.name.lower()), None)
         if existing is not None:
             target = existing
-        if target.exists() and not replace:
-            self.pending_install = safe_name
-            return f"{safe_name} já existe. Substituir e extrair novamente? (s/n)"
+        if target.exists():
+            return f"{safe_name} já existe. Por segurança, renomeie ou faça backup da pasta antes de instalar novamente."
         stage = self.cwd / (".ncrox-stage-" + str(os.getpid()) + "-" + str(__import__("time").time_ns()))
         try:
             with zipfile.ZipFile(archive) as zf:
@@ -294,9 +339,8 @@ class Shell:
                 stage.mkdir(parents=True, exist_ok=True)
                 zf.extractall(stage, pwd=(safe_name + "ncrox").encode("utf-8"))
             if target.exists():
-                import shutil
-                shutil.rmtree(target) if target.is_dir() else target.unlink()
-            stage.replace(target)
+                return "Destino apareceu durante a extração; instalação cancelada para preservar os arquivos."
+            stage.rename(target)
             return f"Extraído em {target}. Nenhum arquivo foi executado."
         except RuntimeError:
             return "Não foi possível extrair: senha inválida ou ZIP incompatível; conteúdo existente foi mantido."
@@ -348,20 +392,29 @@ class Shell:
             if os.name == "nt":
                 p = subprocess.run(raw, cwd=self.cwd, shell=True, capture_output=True, text=True, errors="replace")
             else:
-                p = subprocess.run(["/bin/sh", "-lc", raw], cwd=self.cwd, capture_output=True, text=True, errors="replace")
-            return (p.stdout + p.stderr).rstrip() or ("Concluído." if p.returncode == 0 else f"Código de saída: {p.returncode}")
+                # Android/Termux often has no /bin/sh. Avoid a login shell, which
+                # can reset PATH and source user startup files on every command.
+                prefix = os.environ.get("PREFIX", "")
+                termux_sh = str(Path(prefix) / "bin" / "sh") if prefix else None
+                shell = (termux_sh if termux_sh and os.path.isfile(termux_sh) and os.access(termux_sh, os.X_OK)
+                         else shutil.which("sh") or "/bin/sh")
+                p = subprocess.run([shell, "-c", raw], cwd=self.cwd, capture_output=True, text=True, errors="replace")
+            output = (p.stdout + p.stderr).rstrip()
+            if p.returncode != 0:
+                return (output + "\n" if output else "") + f"Código de saída: {p.returncode}"
+            return output or "Concluído."
         except Exception as e:
             return f"Erro: {e}"
 
 
 def cli():
-    shell = Shell()
+    shell = Shell(color_banners=sys.stdout.isatty())
     print(f"{APP} — terminal local (help para comandos, exit para sair)")
     while True:
         try:
             result = shell.run(input(shell.prompt()))
             if result:
-                if result.startswith("\x1b"):
+                if result == "\x1b[2J\x1b[H":
                     print(result, end="", flush=True)
                 else:
                     print(result)
@@ -383,8 +436,11 @@ def gui():
         root.iconphoto(True, icon)
     except Exception:
         icon = None
-    out = ScrolledText(root, bg="#080b08", fg="#7dff63", insertbackground="#7dff63", font=("Consolas", 11), wrap="word", relief="flat", padx=14, pady=12)
+    out = ScrolledText(root, bg="#080b08", fg="#7dff63", insertbackground="#7dff63", font=("Consolas", 11), wrap="none", relief="flat", padx=14, pady=12)
     out.pack(fill="both", expand=True, padx=10, pady=(10, 4))
+    horizontal = tk.Scrollbar(root, orient="horizontal", command=out.xview)
+    horizontal.pack(fill="x", padx=10)
+    out.configure(xscrollcommand=horizontal.set)
     out.insert("end", f"{APP} | comandos locais do sistema\nDigite help para ajuda.\n\n")
     entry = tk.Entry(root, bg="#101510", fg="#7dff63", insertbackground="#7dff63", font=("Consolas", 11), relief="flat")
     entry.pack(fill="x", padx=10, pady=(4, 10), ipady=9)
