@@ -1,16 +1,9 @@
 # Satanachia ncrox
 
-Terminal local em Python para desktop e APK Android básico. O app Android usa `/system/bin/sh` sem root, com diretório de trabalho privado no sandbox. Isso NÃO é Termux dentro de APK: programas Termux (git, nmap etc.) não ficam acessíveis ao app por padrão. No desktop, o programa encaminha comandos ao shell instalado.
+Terminal local experimental para desktop e Android. A tela Android é minimalista: prompt curto sem caminho, histórico, teclas ESC/TAB/CTRL/ALT/setas/HOME/END/PGUP/PGDN/LOCK; TAB envia o comando. Use `pwd` para exibir o caminho atual. A árvore usa `╰──` e `──╮─`.
 
-## Comandos incluídos
-- `make [-p] pasta`: criar diretórios.
-- `tree [pasta]`: listar em árvore.
-- `pick URL|usuario/repo`: clonar via `git clone`, se git estiver instalado.
-- `net faces`, `net faces -root`, `net -show -all`: informações de interfaces locais, nunca senhas Wi-Fi.
-- `cd`, `pwd`, `help`, `clear`, `exit`; demais comandos seguem para shell local.
+O Android pode pedir acesso a arquivos compartilhados nas Configurações do sistema; o botão desaparece quando o acesso é concedido. Acesso amplo a arquivos é sensível e builds de teste são para instalação direta, não publicação na Play Store sem a revisão e declaração exigidas.
 
-## Downloads automáticos
-O GitHub Actions compila Android APK e Windows EXE ao enviar para `main` ou iniciar manualmente o workflow. Ao sucesso, publica um Release `build-N` com os dois arquivos. Consulte a aba Releases no repositório.
+O app inicia um serviço Android em primeiro plano com notificação persistente para continuar ativo em segundo plano. Wake lock é opcional e fica desligado por padrão: tecla `LOCK` ou comando `acquire lock` liga; `release lock` desliga. Wake lock gasta bateria. O Android ainda pode interromper o serviço em force-stop ou por políticas do fabricante.
 
-## Limites importantes
-O APK é um terminal básico em sandbox Android: sem root, sem persistência de ambiente Linux completo, e só pode executar comandos que existam no sistema Android ou dentro do espaço do app. Não faz instalação de Kali/NetHunter, Metasploit ou ferramentas de intrusão; não recupera chaves Wi-Fi. O `pick` Android depende de `git` disponível no PATH, o que não é padrão. EXE gera-se pelo workflow Windows.
+Comandos: `pwd`, `cd`, `make`, `tree`, `pick`, `net faces`, `acquire lock`, `release lock` e comandos disponíveis em `/system/bin/sh`. APK não é Termux: não tem root, gerenciador de pacotes Linux, nem todas as ferramentas. A permissão de arquivos compartilhados não permite ler dados privados de outros apps. Não inclui extração de credenciais nem módulos de intrusão.
