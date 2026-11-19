@@ -6,6 +6,10 @@ import shlex
 import subprocess
 import sys
 import threading
+import urllib.request
+import json
+import zipfile
+import hashlib
 from pathlib import Path
 
 APP = "Satanachia ncrox"
@@ -39,6 +43,9 @@ class Shell:
     def __init__(self):
         self.cwd = Path.cwd()
         self.system = platform.system().lower()
+        self.pending_install = None
+        self.pending_kill = None
+        self.pending_tasklist = False
 
     def prompt(self):
         return "0───────~$[ "
@@ -47,6 +54,22 @@ class Shell:
         raw = raw.strip()
         if not raw:
             return ""
+        answer = raw.lower()
+        if self.pending_install:
+            name, self.pending_install = self.pending_install, None
+            if answer in ("s", "sim", "y", "yes"):
+                return self._install_store_package(name, replace=True)
+            return "Instalação cancelada."
+        if self.pending_kill:
+            pid, process, self.pending_kill = self.pending_kill[0], self.pending_kill[1], None
+            if answer in ("s", "sim", "y", "yes"):
+                return self._terminate_process(pid, process)
+            return "Interrupção cancelada."
+        if self.pending_tasklist:
+            self.pending_tasklist = False
+            if answer not in ("s", "sim", "y", "yes"):
+                return "Operação cancelada."
+            return self._process_list()
         try:
             args = shlex.split(raw, posix=(os.name != "nt"))
         except ValueError as e:
@@ -57,69 +80,242 @@ class Shell:
         if cmd in ("exit", "quit", "sair"):
             raise SystemExit
         if cmd in ("help", "ajuda"):
-            return ("Comandos ncrox: help, clear, pwd, readmd <arquivo.md>, cd [pasta], make [opções] pasta, "
-                    "tree [pasta], pick <URL-ou-usuario/repo>, net faces, net faces -root, "
-                    "net -show -all.\nOs demais comandos são executados pelo shell do sistema, "
-                    "no diretório atual. Use apenas comandos e arquivos que você confia.")
+            return ("NCROX: help, clear, pwd, cd, make, tree, pick, readmd, docs -<ext>, applist [-sudozi|-apk], "
+                    "tasklist [-sudozi], taskkill -sudozi <processo>, flash, avrcp, ondeuto -ip|-info, ip a, ifconfig, "
+                    "say, open -a <app>, satanachia -store|-pick|-st.\nExecutáveis detectados em PATH: " +
+                    self.available_commands() + "\nNem todo comando existe em todo sistema; comandos internos do shell podem não aparecer.")
         if cmd in ("clear", "cls", "limpar"):
             return "\x1b[2J\x1b[H"
         if cmd == "pwd":
             return str(self.cwd)
         if cmd == "readmd":
-            if not rest:
-                return "Uso: readmd <arquivo.md>"
+            if not rest: return "Uso: readmd <arquivo.md>"
             target = Path(rest[0]).expanduser()
-            if not target.is_absolute():
-                target = self.cwd / target
-            if target.suffix.lower() != ".md":
-                return "readmd: o arquivo precisa ter extensão .md"
-            try:
-                return target.read_text(encoding="utf-8")
-            except FileNotFoundError:
-                return f"readmd: arquivo não encontrado: {target}"
-            except UnicodeDecodeError:
-                return "readmd: não consegui ler o arquivo como texto UTF-8"
-            except OSError as e:
-                return f"readmd: {e}"
+            if not target.is_absolute(): target = self.cwd / target
+            if target.suffix.lower() != ".md": return "readmd: o arquivo precisa ter extensão .md"
+            try: return target.read_text(encoding="utf-8")
+            except FileNotFoundError: return f"readmd: arquivo não encontrado: {target}"
+            except UnicodeDecodeError: return "readmd: arquivo não é UTF-8 válido"
+            except OSError as e: return f"readmd: {e}"
         if cmd == "cd":
             target = Path(rest[0]).expanduser() if rest else Path.home()
-            if not target.is_absolute():
-                target = self.cwd / target
-            if target.is_dir():
-                self.cwd = target.resolve()
-                return str(self.cwd)
+            if not target.is_absolute(): target = self.cwd / target
+            if target.is_dir(): self.cwd = target.resolve(); return str(self.cwd)
             return f"cd: diretório não encontrado: {target}"
         if cmd == "make":
-            if not rest:
-                return "Uso: make [-p|--parents] <nome-da-pasta>"
-            # Consistent mkdir-style behavior across Windows, Unix and Termux.
+            if not rest: return "Uso: make [-p|--parents] <pasta>"
             parents = "-p" in rest or "--parents" in rest
             names = [x for x in rest if x not in ("-p", "--parents")]
-            if not names:
-                return "Uso: make [-p|--parents] <nome-da-pasta>"
-            try:
-                target = Path(names[-1]).expanduser()
-                if not target.is_absolute():
-                    target = self.cwd / target
-                target.mkdir(parents=parents, exist_ok=parents)
-                return f"Pasta criada: {target}"
-            except Exception as e:
-                return f"make: {e}"
+            if not names: return "Uso: make [-p|--parents] <pasta>"
+            target = Path(names[-1]).expanduser()
+            if not target.is_absolute(): target = self.cwd / target
+            try: target.mkdir(parents=parents, exist_ok=parents); return f"Pasta criada: {target}"
+            except Exception as e: return f"make: {e}"
         if cmd in ("tree", "ls"):
             return tree(rest[0] if rest else self.cwd)
         if cmd == "pick":
-            if not rest:
-                return "Uso: pick <URL-do-repositório ou usuario/repositorio> [opções do git clone]"
+            if not rest: return "Uso: pick <URL-do-repositório ou usuario/repo>"
             repo = rest[0]
-            if "://" not in repo and not repo.startswith("git@"):
-                repo = "https://github.com/" + repo.removesuffix(".git") + ".git"
+            if "://" not in repo and not repo.startswith("git@"): repo = "https://github.com/" + repo.removesuffix(".git") + ".git"
             return self._exec(["git", "clone", repo, *rest[1:]])
-        if cmd == "net":
-            return self._net(rest)
-        # Requested ergonomic alias. Other system commands remain native.
-        if cmd == "mkdir":
-            return self._exec(["mkdir", *rest])
+        if cmd == "net": return self._net(rest)
+        if cmd == "ip" and rest[:1] == ["a"]: return self._net(["-show", "-all"])
+        if cmd == "ifconfig": return self._net(["faces"])
+        if cmd == "docs": return self._find_files(rest)
+        if cmd == "applist": return self._app_list(rest)
+        if cmd == "tasklist":
+            if rest and rest[0].lower() == "-sudozi":
+                self.pending_tasklist = True
+                return "Listar processos visíveis ao sistema? (s/n)"
+            return self._process_list()
+        if cmd == "taskkill":
+            if len(rest) < 2 or rest[0].lower() != "-sudozi": return "Uso: taskkill -sudozi <nome-ou-pid>"
+            match = self._find_process(rest[1])
+            if not match: return f"Processo não encontrado: {rest[1]}"
+            self.pending_kill = match
+            return f"Interromper {match[1]} (PID {match[0]})? (s/n)"
+        if cmd == "flash": return "Controle físico do flash só está disponível no Android e depende do aparelho/permissão."
+        if cmd == "avrcp": return "A versão AVRCP ativa não é exposta por este sistema."
+        if cmd == "ondeuto":
+            if not rest: return "Uso: ondeuto -ip | ondeuto -info"
+            if rest[0].lower() == "-ip": return self._ip_location()
+            return "Localização precisa depende de uma API de localização do sistema; este build desktop não a consulta."
+        if cmd == "say":
+            if not rest: return "Uso: say <texto>"
+            text = " ".join(rest)
+            if self.system == "darwin": return self._exec(["say", text])
+            if self.system == "windows":
+                ps = "Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak('" + text.replace("'", "''") + "')"
+                return self._exec_raw("powershell -NoProfile -Command " + shlex.quote(ps))
+            return self._exec(["espeak", text])
+        if cmd == "open":
+            if not rest: return "Uso: open -a <app> | open .<app>"
+            name = rest[-1].lstrip(".")
+            if self.system == "windows": return self._exec_raw("start \"\" " + shlex.quote(name))
+            if self.system == "darwin": return self._exec(["open", "-a", name])
+            return self._exec(["xdg-open", name])
+        if cmd == "satanachia":
+            if not rest: return "Uso: satanachia -store | -pick <nome> | -st <nome>"
+            sub = rest[0].lower()
+            if sub == "-store": return self._store_list()
+            if sub == "-pick" and len(rest) > 1: return self._download_store_package(rest[1])
+            if sub == "-st" and len(rest) > 1: return self._install_store_package(rest[1])
+            return "Uso: satanachia -store | -pick <nome> | -st <nome>"
+        if cmd == "acquire" and rest[:1] == ["lock"]: return "Wake lock disponível somente no APK Android."
+        if cmd == "release" and rest[:1] == ["lock"]: return "Wake lock disponível somente no APK Android."
         return self._exec_raw(raw)
+
+    def _find_files(self, args):
+        if not args: return "Uso: docs -<extensão>"
+        ext = args[0].lower().lstrip("-")
+        if not ext.startswith("."): ext = "." + ext
+        found=[]
+        for root, dirs, files in os.walk(self.cwd):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for name in files:
+                if name.lower().endswith(ext):
+                    found.append(str(Path(root)/name))
+                    if len(found)>=1000: return "\n".join(found)+"\n[limite 1000]"
+        return "\n".join(found) if found else f"Nenhum arquivo *{ext} encontrado."
+
+    def _app_list(self,args):
+        if args and args[0].lower()=="-apk": return self._find_files([".apk"])
+        if self.system=="windows": return self._exec_raw('powershell -NoProfile -Command "Get-StartApps | Sort-Object Name | Format-Table -AutoSize"')
+        roots=[Path("/Applications"),Path.home()/"Applications"] if self.system=="darwin" else [Path("/usr/share/applications"),Path.home()/".local/share/applications"]
+        items=[]
+        for root in roots:
+            if root.exists():
+                items.extend(str(p) for p in root.rglob("*.app" if self.system=="darwin" else "*.desktop"))
+        return "\n".join(sorted(set(items),key=str.lower)) if items else "Nenhum atalho de app encontrado nas pastas padrão."
+
+    def _process_list(self):
+        return self._exec_raw("tasklist" if self.system=="windows" else "ps aux")
+
+    def _find_process(self,token):
+        try:
+            if self.system=="windows":
+                import csv,io
+                raw=self._exec_raw("tasklist /FO CSV /NH")
+                for row in csv.reader(io.StringIO(raw)):
+                    if len(row)>1 and (row[1]==token or row[0].lower()==token.lower()): return (row[1],row[0])
+            else:
+                p=subprocess.run(["ps","-eo","pid=,comm="],capture_output=True,text=True,errors="replace")
+                for line in p.stdout.splitlines():
+                    parts=line.strip().split(None,1)
+                    if len(parts)==2 and (parts[0]==token or Path(parts[1]).name.lower()==token.lower()): return (parts[0],parts[1])
+        except Exception: return None
+        return None
+
+    def _terminate_process(self,pid,name):
+        try:
+            if int(pid) <= 1 or int(pid) == os.getpid():
+                return "Recusado: não vou interromper processo do sistema ou o próprio ncrox."
+        except ValueError:
+            return "PID inválido."
+        if self.system=="windows": return self._exec(["taskkill","/PID",str(pid),"/F"])
+        return self._exec(["kill",str(pid)])
+
+    def _ip_location(self):
+        try:
+            req=urllib.request.Request("https://ipapi.co/json/",headers={"User-Agent":"Satanachia-ncrox"})
+            with urllib.request.urlopen(req,timeout=8) as r: data=json.loads(r.read().decode("utf-8"))
+            return "Localização aproximada pelo IP público (consulta enviada a ipapi.co; não confirma VPN):\nIP: "+data.get("ip","?")+"\nCidade/região: "+data.get("city","?")+", "+data.get("region","?")+"\nPaís: "+data.get("country_name","?")
+        except Exception as e: return f"Consulta de IP indisponível: {e}"
+
+    def _store_files(self):
+        req = urllib.request.Request(
+            "https://api.github.com/repos/N3CR0-X/ncrox/contents/store",
+            headers={"User-Agent": "Satanachia-ncrox", "Accept": "application/vnd.github+json"})
+        try:
+            with urllib.request.urlopen(req, timeout=10) as r:
+                data = json.loads(r.read().decode("utf-8"))
+            if isinstance(data, dict) and data.get("message") == "Not Found":
+                return []
+            return [x for x in data if isinstance(x, dict) and x.get("type") == "file" and x.get("name", "").lower().endswith(".zip")]
+        except Exception:
+            return []
+
+    def _store_list(self):
+        files = self._store_files()
+        return "loja vazia" if not files else "Ferramentas na store/:\n" + "\n".join("╰── " + x["name"] for x in files)
+
+    def _download_store_package(self, name):
+        wanted = name.lower() if name.lower().endswith(".zip") else name.lower() + ".zip"
+        item = next((x for x in self._store_files() if x.get("name", "").lower() == wanted), None)
+        if not item:
+            return "loja vazia" if not self._store_files() else f"Ferramenta não encontrada: {name}"
+        try:
+            url = item.get("download_url")
+            if not url:
+                return "Pacote sem URL de download."
+            req = urllib.request.Request(url, headers={"User-Agent": "Satanachia-ncrox"})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                data = response.read(100 * 1024 * 1024 + 1)
+            if len(data) > 100 * 1024 * 1024:
+                return "Download recusado: pacote acima de 100 MB."
+            dest = self.cwd / item["name"]
+            dest.write_bytes(data)
+            return f"Baixado {dest.name} (SHA-256 {hashlib.sha256(data).hexdigest()})"
+        except Exception as e:
+            return f"Download falhou: {e}"
+
+    def _install_store_package(self, name, replace=False):
+        safe_name = Path(name).name
+        if safe_name.lower().endswith(".zip"):
+            safe_name = safe_name[:-4]
+        archive = self.cwd / (safe_name + ".zip")
+        target = self.cwd / safe_name
+        actual = next((x for x in self.cwd.iterdir() if x.is_file() and x.name.lower() == archive.name.lower()), None)
+        if actual is None:
+            fetched = self._download_store_package(safe_name)
+            if fetched.startswith(("loja vazia", "Ferramenta não encontrada", "Download falhou")):
+                return fetched
+            actual = next((x for x in self.cwd.iterdir() if x.is_file() and x.name.lower() == archive.name.lower()), None)
+            if actual is None:
+                return f"ZIP não encontrado: {archive.name}"
+        archive = actual
+        existing = next((x for x in self.cwd.iterdir() if x.name.lower() == target.name.lower()), None)
+        if existing is not None:
+            target = existing
+        if target.exists() and not replace:
+            self.pending_install = safe_name
+            return f"{safe_name} já existe. Substituir e extrair novamente? (s/n)"
+        stage = self.cwd / (".ncrox-stage-" + str(os.getpid()) + "-" + str(__import__("time").time_ns()))
+        try:
+            with zipfile.ZipFile(archive) as zf:
+                base = stage.resolve()
+                for info in zf.infolist():
+                    dest = (stage / info.filename).resolve()
+                    if dest != base and base not in dest.parents:
+                        return "ZIP recusado: caminho de extração sai da pasta de destino."
+                    mode = info.external_attr >> 16
+                    if mode & 0o170000 == 0o120000:
+                        return "ZIP recusado: links simbólicos não são aceitos."
+                stage.mkdir(parents=True, exist_ok=True)
+                zf.extractall(stage, pwd=(safe_name + "ncrox").encode("utf-8"))
+            if target.exists():
+                import shutil
+                shutil.rmtree(target) if target.is_dir() else target.unlink()
+            stage.replace(target)
+            return f"Extraído em {target}. Nenhum arquivo foi executado."
+        except RuntimeError:
+            return "Não foi possível extrair: senha inválida ou ZIP incompatível; conteúdo existente foi mantido."
+        except Exception as e:
+            return f"Não foi possível extrair o pacote: {e}; conteúdo existente foi mantido."
+        finally:
+            if stage.exists():
+                import shutil
+                shutil.rmtree(stage, ignore_errors=True)
+    def available_commands(self):
+        names = set()
+        for directory in os.environ.get("PATH", "").split(os.pathsep):
+            try:
+                for entry in Path(directory).iterdir():
+                    if entry.is_file() and (os.name == "nt" or os.access(entry, os.X_OK)):
+                        names.add(entry.name)
+            except (OSError, PermissionError):
+                continue
+        return ", ".join(sorted(names, key=str.lower)) or "nenhum detectado"
 
     def _net(self, args):
         if args[:1] == ["faces"]:
