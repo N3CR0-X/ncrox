@@ -196,7 +196,7 @@ final class ShellSession implements AutoCloseable {
     }
   }
 
-  private static void stopTree(Process p) {
+  private void stopTree(Process p) {
     java.util.LinkedHashSet<Long> children = new java.util.LinkedHashSet<>();
     try { collectChildren(shellPid, children, 0); } catch (Exception ignored) { }
     signalAll(children, "-TERM");
