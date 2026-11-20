@@ -5,6 +5,12 @@
 ## Banners
 Os comandos vigia, oraculo, bastiao e selo mostram suas artes em UTF-8 antes do resultado. As artes ficam em `banners/`. No terminal interativo, azul e laranja usam ANSI truecolor; em saída redirecionada ou na GUI Python, são exibidas sem códigos de escape. No Android, as cores são aplicadas ao texto e há rolagem horizontal. A fonte e a largura da tela podem afetar o alinhamento dos caracteres Braille; o resultado no Android ainda precisa ser verificado em aparelho. As três artes em Braille foram transcritas da conversa e precisam de conferência visual contra os originais.
 
+## Catálogo da Store: 100 pacotes individuais
+
+A Satanachia Store inclui [100 pacotes em ZIPs separados](store/catalogo.md): ferramentas gerais de desenvolvimento, bibliotecas Python, editores, terminal, arquivos e rede básica. Cada ZIP contém instruções e um instalador que usa `pkg` no Termux, `apt` no Debian/Parrot ou `pacman` no Arch existente. A lista não é literalmente o catálogo inteiro dessas distribuições; disponibilidade/nome varia conforme release, arquitetura e repositórios. Não são imagens completas de sistemas operacionais nem ferramentas que o APK instala dentro de si. Leia `store/catalogo.md` e o `LEIA-ME.md` do pacote antes de executar `bash install.sh`.
+
+No Satanachia: `satanachia -store`, `satanachia -pick <nome>`, `satanachia -st <nome>`. Extração não executa o instalador. Bibliotecas Python são instaladas em `~/.venvs/ncrox-store-python`; veja o guia de instalação do Termux abaixo.
+
 ## Instalar ferramentas do Termux pela Store (Android)
 
 O pacote `dev-tools` prepara **o app Termux**, não instala Git/Python dentro do APK Satanachia. No Android, cada app fica isolado. É necessário ter o Termux oficial instalado e inicializado; o pacote não inclui nem instala o bootstrap do Termux. Se ainda não tiver Termux, instale-o por uma fonte oficial (F-Droid ou GitHub oficial), abra-o uma vez e conclua a configuração inicial.
@@ -110,4 +116,4 @@ Outros comandos da versão Python (não do APK):
 ## Permissões e limitações
 O Android pergunta por câmera/localização e usa configuração especial para acesso amplo aos arquivos. `QUERY_ALL_PACKAGES` e `MANAGE_EXTERNAL_STORAGE` são sensíveis; este APK é experimental/sideload e exige avaliação de política antes de publicação em loja. Android não oferece root, memória por processo ou encerramento arbitrário a apps comuns. Permissão de arquivos compartilhados não permite ler dados privados de outros aplicativos. Downloads de ferramentas são pacotes de terceiros do repositório e devem ser revisados antes de uso; a extração não executa arquivos.
 
-A Store atualmente inclui `dev-tools.zip`, pacote de utilitários para Termux descrito acima, além de `readme.md`. Use `satanachia -store` para consultar os ZIPs publicados no momento; os pacotes disponíveis podem mudar.
+A Store atualmente contém os 100 pacotes individuais listados em `store/catalogo.md`, além de `dev-tools.zip`. Use `satanachia -store` para consultar os ZIPs publicados; a disponibilidade pode mudar.
