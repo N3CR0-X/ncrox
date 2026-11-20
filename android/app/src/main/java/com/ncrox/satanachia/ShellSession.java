@@ -126,14 +126,13 @@ final class ShellSession implements AutoCloseable {
           boolean expired = process != null && process.isAlive();
           if (expired) {
             timedOut = true;
-            process.destroy();
-            try { if (!process.waitFor(150, TimeUnit.MILLISECONDS)) process.destroyForcibly(); }
-            catch (InterruptedException e) { Thread.currentThread().interrupt(); process.destroyForcibly(); }
+            stopTree(process);
             process = null; writer = null; processGeneration++;
           }
           return new Result(output.toString() + (truncated ? "\n[saída truncada em 65536 bytes]" : "") + (expired ? "\n[tempo limite excedido; sessão reiniciada]" : "\n[o processo do shell terminou; sessão será recriada]"), pwd, expired ? 124 : 1, expired);
         }
-          String text = output.toString();
+        String text = output.toString();
+        while (text.endsWith("\n")) text = text.substring(0, text.length() - 1); // MainActivity adds the terminal line break.
         if (truncated) text += "\n[saída truncada em 65536 bytes; restante descartado]";
         return new Result(text, pwd, status, false);
       }
@@ -151,9 +150,8 @@ final class ShellSession implements AutoCloseable {
           if (generation != processGeneration) continue;
           for (int i = 0; i < n; i++) {
             char ch = buf[i];
-            if (ch == '\n') {
-              consumeLine(line.toString()); line.setLength(0);
-            } else if (line.length() < OUTPUT_LIMIT) line.append(ch);
+            if (ch == '\n') { consumeLine(line.toString()); line.setLength(0); }
+            else if (line.length() < OUTPUT_LIMIT) line.append(ch);
             else truncated = true;
           }
           lock.notifyAll();
@@ -183,12 +181,51 @@ final class ShellSession implements AutoCloseable {
     Process p = process; BufferedWriter w = writer;
     process = null; writer = null; processGeneration++;
     if (p != null) {
-      try { if (w != null) { w.write("exit\n"); w.flush(); } } catch (Exception ignored) { }
-      try { if (!p.waitFor(500, TimeUnit.MILLISECONDS)) p.destroy(); }
-      catch (Exception e) { p.destroy(); }
-      try { if (p.isAlive() && !p.waitFor(300, TimeUnit.MILLISECONDS)) p.destroyForcibly(); }
-      catch (Exception e) { p.destroyForcibly(); }
-      try { if (w != null) w.close(); } catch (Exception ignored) { }
+      java.util.LinkedHashSet<Long> children = new java.util.LinkedHashSet<>();
+      collectChildren(p.pid(), children, 0);
+      if (w != null) try { w.close(); } catch (Exception ignored) { }
+      signalAll(children, "-TERM");
+      p.destroy();
+      try { if (!p.waitFor(250, TimeUnit.MILLISECONDS)) p.destroyForcibly(); }
+      catch (InterruptedException e) { Thread.currentThread().interrupt(); p.destroyForcibly(); }
+      signalAll(children, "-KILL");
+      if (p.isAlive()) p.destroyForcibly();
+    }
+  }
+
+  private static void stopTree(Process p) {
+    java.util.LinkedHashSet<Long> children = new java.util.LinkedHashSet<>();
+    try { collectChildren(p.pid(), children, 0); } catch (Exception ignored) { }
+    signalAll(children, "-TERM");
+    p.destroy();
+    try { if (!p.waitFor(200, TimeUnit.MILLISECONDS)) p.destroyForcibly(); }
+    catch (InterruptedException e) { Thread.currentThread().interrupt(); p.destroyForcibly(); }
+    signalAll(children, "-KILL");
+    if (p.isAlive()) p.destroyForcibly();
+  }
+
+  private static void collectChildren(long pid, java.util.Set<Long> out, int depth) {
+    if (depth > 32) return;
+    File f = new File("/proc/" + pid + "/task/" + pid + "/children");
+    try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f))) {
+      String line = r.readLine(); if (line == null || line.trim().isEmpty()) return;
+      for (String token : line.trim().split("\\s+")) if (token.matches("[0-9]+")) {
+        long child = Long.parseLong(token);
+        if (out.add(child)) collectChildren(child, out, depth + 1);
+      }
+    } catch (Exception ignored) { }
+  }
+
+  private static void signalAll(java.util.Set<Long> pids, String signal) {
+    ArrayList<Long> reverse = new ArrayList<>(pids); Collections.reverse(reverse);
+    for (long pid : reverse) signal(pid, signal);
+  }
+
+  private static void signal(long pid, String signal) {
+    String[] candidates = {"/system/bin/kill", "/bin/kill", "/usr/bin/kill"};
+    for (String path : candidates) if (new File(path).canExecute()) {
+      try { new ProcessBuilder(path, signal, Long.toString(pid)).start().waitFor(250, TimeUnit.MILLISECONDS); return; }
+      catch (Exception ignored) { }
     }
   }
 

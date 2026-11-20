@@ -30,7 +30,7 @@ public final class ShellSessionTest {
       r = shell.run("cd nested", work);
       check(nested.getCanonicalPath().equals(new File(r.pwd).getCanonicalPath()), "shell cd changes persistent cwd");
       r = shell.run("pwd", nested);
-      check(nested.getCanonicalPath().equals(new File(r.output).getCanonicalPath()), "pwd sees persistent cwd");
+      check(nested.getCanonicalPath().equals(new File(r.output.trim()).getCanonicalPath()), "pwd sees persistent cwd");
       r = shell.run("printf out; printf err >&2; false", nested);
       check(r.output.contains("outerr") && r.status != 0, "stdout, stderr and status captured");
       r = shell.run("exec sleep 5", nested);

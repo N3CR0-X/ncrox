@@ -1,6 +1,6 @@
 # Satanachia ncrox — Android
 
-O APK inclui GNU Bash 5.3 para `arm64-v8a`, `armeabi-v7a`, `x86_64` e `x86`. O shell padrão do terminal agora mantém **uma sessão Bash por aba** para executar comandos externos: `export`, funções e `cd` feitos no shell persistem naquela aba. As abas têm sessões e diretórios independentes; `start` abre uma aba, e `exit`, `logout` ou `quit` fecha o app, encerra as sessões e para o serviço do terminal.
+O APK inclui GNU Bash 5.3 para `arm64-v8a`, `armeabi-v7a`, `x86_64` e `x86`. O shell padrão do terminal agora mantém **uma sessão Bash por aba** para executar comandos externos: `export`, funções e `cd` feitos no shell persistem naquela aba. As abas têm sessões e diretórios independentes; `start` abre uma aba, e `exit`, `logout` ou `quit` fecha o app, encerra as sessões, tenta terminar os processos filhos e para o serviço do terminal.
 
 ## O que o shell é — e o que não é
 
@@ -15,7 +15,7 @@ O APK inclui GNU Bash 5.3 para `arm64-v8a`, `armeabi-v7a`, `x86_64` e `x86`. O s
 
 `pack search`, `pack show` e `pack list-all` consultam, sem instalar, o catálogo oficial de pacotes Termux. O novo `pkg` encaminha um conjunto limitado de ações ao Termux instalado usando a interface oficial `com.termux.RUN_COMMAND`. A lista inclui `search`, `install`, `show`, `list-installed`, `list-all`, `update`, `upgrade`, `full-upgrade`, `reinstall`, `uninstall`, `remove`, `autoremove`, `clean`, `files`, `help` e `version`.
 
-O encaminhamento é intencionalmente separado do shell do APK: o Termux executa a ação e guarda os pacotes no próprio prefixo privado. Não instala binários no Satanachia. É necessário instalar e inicializar o Termux oficial, permitir ao Satanachia a permissão Android `RUN_COMMAND` e ativar `allow-external-apps=true` em `~/.termux/termux.properties` do Termux. Confirmações e resultados aparecem numa sessão do Termux. O encaminhador recusa flags/argumentos começando com hífen, pipes e comandos compostos; não envia `-y` nem confirma compras/alterações automaticamente. Se a integração não estiver disponível, rode `pkg` diretamente no Termux.
+O encaminhamento é intencionalmente separado do shell do APK: o Termux executa a ação e guarda os pacotes no próprio prefixo privado. Não instala binários no Satanachia. É necessário instalar e inicializar o Termux oficial, permitir ao Satanachia a permissão Android `RUN_COMMAND` e ativar `allow-external-apps=true` em `~/.termux/termux.properties` do Termux. Confirmações e resultados aparecem numa sessão do Termux. O Android pode impor restrições a iniciar telas a partir do Satanachia em segundo plano; se isso ocorrer, traga o Termux para frente. O encaminhador recusa flags/argumentos começando com hífen, pipes e comandos compostos; não envia `-y` nem confirma compras/alterações automaticamente. Se a integração não estiver disponível, rode `pkg` diretamente no Termux.
 
 Referência: [RUN_COMMAND Intent — documentação oficial do Termux](https://github.com/termux/termux-app/wiki/RUN_COMMAND-Intent).
 
