@@ -61,6 +61,7 @@ while IFS='|' read -r abi triple; do
   (
     cd "$src"
     export CC="$TOOLCHAIN/$target-clang"
+    export CC_FOR_BUILD='gcc -std=gnu17'
     export AR="$TOOLCHAIN/llvm-ar" RANLIB="$TOOLCHAIN/llvm-ranlib" STRIP="$TOOLCHAIN/llvm-strip"
     export CFLAGS='-O2 -fPIE' LDFLAGS='-pie'
     ./configure --host="$host" --without-bash-malloc --disable-nls --disable-rpath
