@@ -29,6 +29,7 @@ final class ShellSession implements AutoCloseable {
   private boolean done;
   private int status;
   private String pwd;
+  private volatile long shellPid;
   private String startupError;
   private long processGeneration;
 
@@ -108,7 +109,7 @@ final class ShellSession implements AutoCloseable {
     try {
       String statusVar = "__ncrox_status_" + marker.replaceAll("[^A-Za-z0-9_]", "");
       writer.write("if " + (bash ? "builtin " : "") + "eval " + quote(command == null ? "" : command) + "; then " + statusVar + "=0; else " + statusVar + "=$?; fi\n");
-      writer.write((bash ? "builtin " : "") + "printf '\n" + marker + "|%s|%s\n' \"$" + statusVar + "\" \"$PWD\"\n");
+      writer.write((bash ? "builtin " : "") + "printf '\n" + marker + "|%s|%s|%s\n' \"$" + statusVar + "\" \"$PWD\" \"$$\"\n");
       writer.flush();
       long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMs);
       synchronized (lock) {
@@ -164,9 +165,10 @@ final class ShellSession implements AutoCloseable {
   private void consumeLine(String text) {
     if (text.startsWith(marker + "|")) {
       if (output.length() > 0 && output.charAt(output.length() - 1) == '\n') output.setLength(output.length() - 1);
-      String[] fields = text.substring(marker.length() + 1).split("\\|", 2);
+      String[] fields = text.substring(marker.length() + 1).split("\\|", 3);
       try { status = Integer.parseInt(fields[0]); } catch (Exception ignored) { status = 1; }
       pwd = fields.length > 1 ? fields[1] : null;
+      try { shellPid = fields.length > 2 ? Long.parseLong(fields[2]) : 0; } catch (Exception ignored) { shellPid = 0; }
       done = true;
     } else if (output.length() < OUTPUT_LIMIT) {
       int keep = Math.min(text.length(), OUTPUT_LIMIT - output.length());
@@ -182,7 +184,7 @@ final class ShellSession implements AutoCloseable {
     process = null; writer = null; processGeneration++;
     if (p != null) {
       java.util.LinkedHashSet<Long> children = new java.util.LinkedHashSet<>();
-      collectChildren(p.pid(), children, 0);
+      collectChildren(shellPid, children, 0);
       if (w != null) try { w.close(); } catch (Exception ignored) { }
       signalAll(children, "-TERM");
       p.destroy();
@@ -190,12 +192,13 @@ final class ShellSession implements AutoCloseable {
       catch (InterruptedException e) { Thread.currentThread().interrupt(); p.destroyForcibly(); }
       signalAll(children, "-KILL");
       if (p.isAlive()) p.destroyForcibly();
+      shellPid = 0;
     }
   }
 
   private static void stopTree(Process p) {
     java.util.LinkedHashSet<Long> children = new java.util.LinkedHashSet<>();
-    try { collectChildren(p.pid(), children, 0); } catch (Exception ignored) { }
+    try { collectChildren(shellPid, children, 0); } catch (Exception ignored) { }
     signalAll(children, "-TERM");
     p.destroy();
     try { if (!p.waitFor(200, TimeUnit.MILLISECONDS)) p.destroyForcibly(); }
