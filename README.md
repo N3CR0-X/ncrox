@@ -76,7 +76,7 @@ deactivate
 - Senha convencional do ZIP da Store: `dev-toolsncrox`. A senha previsível não é proteção criptográfica forte; confira os arquivos e a origem antes de executar o instalador.
 
 ## Comandos do terminal
-`help` lista os comandos próprios e, no APK, indica GNU Bash 5.3 embutido. O comando `pack` consulta o catálogo oficial do Termux com `search`, `show` e `list-all` (até 100 itens). No APK também há `bash --version`, `bash -c <script>` e `bash <arquivo>`. `nano <arquivo>` abre o editor simples integrado, não o pacote GNU nano. Não existe listagem portátil de absolutamente todos os comandos: built-ins do shell e ferramentas disponíveis variam conforme o aparelho e permissões. No Android, `command -v <nome>` verifica uma ferramenta específica.
+`help` lista os comandos próprios e varre os diretórios de sistema para mostrar todos os executáveis visíveis no aparelho; a quantidade muda por marca/versão e pode passar de 400, mas não é garantida. O comando `pack` consulta o catálogo oficial do Termux com `search`, `show` e `list-all` (até 100 itens). No APK também há `bash --version`, `bash -c <script>` e `bash <arquivo>`. `nano <arquivo>` abre o editor simples integrado, não o pacote GNU nano. Não existe listagem portátil de absolutamente todos os comandos: built-ins do shell e ferramentas disponíveis variam conforme o aparelho e permissões. No Android, `command -v <nome>` verifica uma ferramenta específica.
 
 ### Bash no APK Android
 
@@ -89,6 +89,65 @@ No APK, `pack` consulta pela internet o índice oficial do Termux para a arquite
 **Importante:** isso não é o `pkg` do Termux e não consegue instalar dentro do Satanachia. O Android isola os apps, e extrair `nano.zip` só deixa `install.sh` e `LEIA-ME.md` visíveis — não cria `nano` no PATH do APK. Para instalar, abra o Termux oficial e rode lá `pkg install nano`. A lista de pacotes pode mudar e depende da arquitetura e disponibilidade do repositório. `pack install/remove/upgrade` explica essa limitação e mostra o comando correspondente para rodar no Termux. A lista de instalados e os arquivos de um pacote (`pack list-installed`/`pack files`) também dependem do banco privado do Termux, então precisam ser consultados lá.
 
 Também incluí `nano <arquivo>` como editor simples integrado ao Satanachia para abrir e salvar arquivos acessíveis ao app; ele não é o GNU nano.
+
+### Lista de comandos do Satanachia Android
+
+O `help` lista os comandos próprios e, em seguida, os executáveis que este aparelho expõe em seus diretórios de sistema. Por isso a lista muda de um celular para outro; não existe um catálogo universal garantido de 400 comandos. O Satanachia agora varre os executáveis visíveis em `/system/bin`, `/system/xbin`, `/vendor/bin`, `/vendor/xbin`, `/product/bin` e diretórios de runtime/APEX. Estar na lista não garante que o Android permita todas as opções nem que um programa interativo funcione sem PTY. Os comandos em seguida usam o diretório atual da aba quando falam em arquivos; permissões Android continuam valendo.
+
+**Terminal e arquivos**
+
+- `help` ou `ajuda`: mostra comandos próprios, executáveis visíveis no aparelho e limites. `command -v nome`, `type nome` e `which nome` ajudam a checar se um comando está disponível; `which` pode não vir no Android.
+- `pwd`: mostra o diretório atual da aba. `cd [pasta]`: troca a pasta da aba (`cd` sem argumento volta ao diretório inicial); caminho relativo parte da pasta atual. Não muda o diretório de outras abas.
+- `ls [opções] [pasta]`, `cat arquivo`, `cp origem destino`, `mv origem destino`, `rm arquivo`, `mkdir -p pasta`, `find`, `grep`, `sed`, `head`, `tail`, `wc`, `df`, `ps`: se o Android fornecer o binário e as permissões, rodam no diretório atual; opções variam. `rm` apaga, então confira o caminho. Esses exemplos são programas do aparelho, não comandos implementados pelo Satanachia.
+- `make [ -p ] pasta`: comando próprio que cria uma pasta (com `-p`, cria pastas-pai); não é GNU Make e não roda Makefile. `tree [pasta]`: lista recursivamente, com profundidade limitada; caminho relativo usa a pasta atual.
+- `readmd arquivo.md`: mostra Markdown como texto, somente leitura; arquivo deve ser acessível no diretório atual. `nano arquivo` ou `edit arquivo`: abre o editor de texto simples integrado; salva o arquivo acessível ao app, até 1 MiB. Não é o GNU nano do pacote Store.
+- `clear` ou `cls`: limpa a tela visível do terminal. `tabs`: informa quantas abas há. `start`: abre uma aba nova do Satanachia, preservando a aba atual.
+- `exit`, `logout` ou `quit`: fecha o Satanachia e para o serviço do terminal/wake lock. Não use como `exit` de shell se a intenção for só voltar ao prompt; no APK encerra o app.
+- `bash --version`: mostra a versão do Bash embutido. `bash -c 'comandos'`: roda uma expressão Bash; `bash arquivo.sh`: executa um script no diretório atual. Cada execução é isolada e não interativa, limite 30 s/64 KiB; variáveis não persistem entre comandos. O Bash não inclui `pkg`, `apt`, Termux, root ou ferramentas de outros ZIPs.
+- `pick dono/repo` ou `pick URL`: tenta `git clone` no diretório atual; requer Git já acessível ao app e rede. Não instala Git.
+- `satanachia -store`: lista ZIPs publicados. `satanachia -pick nome`: baixa ZIP para o diretório atual. `satanachia -st nome`: extrai em uma subpasta segura; não executa instalador nem instala binário no PATH.
+- `docs -ext`: procura arquivos pela extensão no armazenamento compartilhado (por exemplo `docs -pdf`); requer permissão de arquivos. `applist [-sudozi|-apk]`: lista apps visíveis ao Android, ou procura APKs no armazenamento compartilhado.
+
+**Busca na web e rede**
+
+Os links que aparecem em `search` e `web links` ficam clicáveis na tela; abrir usa o app/navegador padrão do Android. A busca online consulta o Bing em modo RSS e mostra os títulos/trechos devolvidos por ele.
+
+- `search termo` (também `search _termo_com_espacos_`): consulta resultados públicos do Bing, resume os trechos dos três primeiros quando disponíveis e mostra até três links. Toque no endereço na saída para abrir. Requer internet; o texto é resumo automático dos trechos retornados, não validação de páginas.
+- `search -o termo`: abre a busca no navegador padrão configurado no aparelho.
+- `web open URL`: abre HTTP/HTTPS no navegador padrão. `web get URL` ou `web source URL`: busca o conteúdo de texto/HTML (saída limitada a 1 MiB); só HTTP/HTTPS.
+- `web title URL`: lê o título HTML, se existir. `web links URL`: exibe até 20 links absolutos HTTP/HTTPS. `web status URL`: consulta o status HTTP com HEAD. `web headers URL`: mostra cabeçalhos HTTP. Alguns sites bloqueiam HEAD, automação ou acesso sem JavaScript.
+- `dns domínio` ou `web dns domínio`: resolve endereços pelo resolvedor Android; não faz enumeração DNS. `whois domínio` ou `web rdap domínio`: consulta dados de registro via serviço RDAP público; os resultados dependem do registrador/serviço.
+- `github repo dono/repo`, `github user nome`, `github releases dono/repo`, `github issues dono/repo`, `github search termos`: consultas públicas somente leitura à API do GitHub. Limites, internet e repositórios públicos se aplicam.
+- `net`, `ip a`, `ifconfig`, `network`: endereços/interfaces locais ou tipo de conexão que o Android deixa ver. `ondeuto -ip`: localização aproximada do IP público, envia consulta a ipapi.co. `ondeuto -info`: tenta localização do aparelho após permissão; depende de GPS/provedor e pode ser imprecisa.
+- `oraculo domínio`: DNS. `vigia host [porta,porta,...]`: teste TCP limitado de portas em um único host (padrão e limites aparecem em `help`); use somente com autorização. `bastiao host [porta]`: conexão TLS com validação de certificado. `selo arquivo [sha256]`: calcula SHA-256 de arquivo local.
+
+**Utilitários de celular (25 comandos)**
+
+Os comandos abaixo leem dados que o Android expõe ou apenas abrem a tela correspondente; nenhum muda secretamente uma configuração. Alguns fabricantes podem não oferecer a tela solicitada.
+
+- `device`: modelo, versão Android, ABI e nome de pacote do app. Não é número de série nem identificador único.
+- `battery`: porcentagem e estado carregando/descarregando que o Android informa; pode não reportar temperatura/saúde.
+- `storage`: espaço total/livre da partição do app/sistema; não mede todo o armazenamento compartilhado.
+- `screen`: resolução, densidade e escala de tela atual.
+- `uptime`: tempo desde a inicialização mais recente, aproximado pelo relógio monotônico do Android.
+- `locale`: idioma/região ativos no app. `timezone`: fuso horário atual do sistema.
+- `volume`: níveis atuais/máximos de mídia, alarme, toque, notificações e chamada; não muda volume.
+- `ringer`: modo normal/silencioso/vibração; não muda o perfil.
+- `network`: tipo da conexão ativa (Wi-Fi/celular/Ethernet) e indicador de internet validada; não lê senha Wi-Fi.
+- `wifi-settings`: abre configurações de Wi-Fi. `sound-settings`: abre configurações de som. `display-settings`: abre tela/brilho. `location-settings`: abre localização.
+- `app-settings nome-ou-pacote`: abre a página de informações do app correspondente, se o Android o localizar.
+- `airplane-settings`: abre configurações de modo avião (não ativa sozinho). `bluetooth-settings`: abre configurações Bluetooth. `nfc-settings`: abre configurações NFC se disponíveis.
+- `keyboard-settings`: abre métodos de entrada/teclado. `accessibility-settings`: abre acessibilidade. `security-settings`: abre segurança. `apps-settings`: abre a lista de aplicativos.
+- `battery-settings`: abre a tela de economia de bateria. `date-settings`: abre data e hora. `language-settings`: abre idioma/região quando suportado.
+- `flash -on|-off|-blink|-os -time N`: controla o flash da câmera com permissão e aparelho compatível; limite e duração aparecem em `help`. `say texto`: lê texto com a voz disponível no Android. `open -a app` ou `open .app`: tenta abrir aplicativo instalado e visível.
+- `tasklist -sudozi`: lista limitada de processos que a API fornece, após os requisitos e confirmação. `taskkill -sudozi app`: abre informações do app; é o Android que oferece a opção de forçar parada.
+- `acquire lock` / `release lock`: liga/desliga o wake lock do serviço do terminal. `settings`: preferências de tema/prompt. `avrcp`: informa limite da API; não inventa uma versão Bluetooth.
+
+**Diretórios, abas e limites**
+
+Comandos de arquivo, `bash`, `web get`, `web title` e `web links` não mudam a pasta da aba; arquivos relativos usam a pasta atual. `pack`, `search`, `github`, `dns`, `whois`, `network`, utilitários de dispositivo e telas de configurações não dependem da pasta atual. `start` cria nova aba com o diretório inicial do app. Acessos a `/storage/emulated/0` exigem a permissão do Android; diretórios privados de Termux/outros apps não ficam visíveis. O `exit`/`logout` fecha tudo do app, enquanto o botão de aba e `tabs` só gerenciam sessões.
+
+A lista real de executáveis do celular é a que `help` varre na hora. Um nome existente pode ser bloqueado por SELinux/permissões ou não funcionar sem PTY; `vi` pode emitir caracteres de controle em vez de abrir uma sessão interativa. Um ZIP da Store não se transforma em programa executável ao ser extraído. Para pacotes Termux, use `pack search/show/list-all` no Satanachia e execute `pkg install nome` dentro do app Termux. Essa separação segue as [limitações e instruções oficiais de gerenciamento de pacotes do Termux](https://wiki.termux.com/wiki/Package_Management).
 
 ### Android
 - `flash -on`, `flash -off`, `flash -blink` (quatro flashes; intervalo de 450 ms) e `flash -os -time N` (1–300 s). Requer câmera/flash suportados e autorização do usuário.
@@ -108,7 +167,7 @@ Também incluí `nano <arquivo>` como editor simples integrado ao Satanachia par
 ### Desktop / Termux
 No APK Android, os comandos de shell usam GNU Bash 5.3 embutido para a ABI compatível do aparelho; no terminal Python/Windows, o shell do sistema é usado. O Bash do APK é não interativo, limitado a 30 s e 64 KiB, e não inclui Linux/Termux, root ou pacotes extras. Também oferece `docs`, `applist`, `tasklist`, `taskkill -sudozi` (pede confirmação), `say`, `open` e os comandos `satanachia` que usam a mesma pasta de pacotes do repositório. Flash/AVRCP/lock de Android e localização precisa são específicos do APK.
 
-Execute `python satanachia.py` na pasta do projeto e use `help` (ou `python satanachia.py --gui` onde Tk estiver disponível). Não instale pacotes para usar os comandos abaixo: usam a biblioteca padrão do Python. Execute testes offline com `python -m unittest discover -v` na pasta do projeto. As ferramentas de auditoria só devem ser usadas em alvos próprios ou com autorização explícita; geram consultas/conexões reais e podem aparecer em logs. As quatro ferramentas também foram integradas ao código Android; veja `android/LEIA-ME-FERRAMENTAS.md` para diferenças. Ainda não há APK compilado ou teste em aparelho. As utilidades extras abaixo são exclusivas da versão Python.
+Execute `python satanachia.py` na pasta do projeto e use `help` (ou `python satanachia.py --gui` onde Tk estiver disponível). Não instale pacotes para usar os comandos abaixo: usam a biblioteca padrão do Python. Execute testes offline com `python -m unittest discover -v` na pasta do projeto. As ferramentas de auditoria só devem ser usadas em alvos próprios ou com autorização explícita; geram consultas/conexões reais e podem aparecer em logs. As quatro ferramentas também foram integradas ao código Android; veja `android/LEIA-ME-FERRAMENTAS.md` para diferenças. O workflow compila APK/EXE; a instalação e os testes no aparelho físico ainda dependem de validação no dispositivo. As utilidades extras abaixo são exclusivas da versão Python.
 
 - `vigia <host> [portas]`: conecta por TCP a um único host, até 32 portas numéricas separadas por vírgulas, sem intervalos (ex.: `vigia 127.0.0.1 22,80,443`). Sem lista, usa 22,80,443,8080. Resolve uma vez e verifica somente o primeiro endereço retornado; 1 s por tentativa de conexão. Apresenta aberta, recusada, timeout ou erro; uma porta aberta não garante segurança.
 - `oraculo <domínio>`: resolve IPv4/IPv6 pelo resolvedor do sistema (ex.: `oraculo localhost`); não consulta registros MX/TXT nem informa TTL.
