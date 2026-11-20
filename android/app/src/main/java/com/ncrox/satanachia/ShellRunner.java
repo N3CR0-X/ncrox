@@ -15,7 +15,14 @@ final class ShellRunner {
   static String runDirect(String[] argv, File cwd, long timeoutMillis) {
     Process p = null;
     try {
-      p = new ProcessBuilder(argv).directory(cwd).redirectErrorStream(true).start();
+      File workDir = cwd;
+      while (workDir != null && (!workDir.isDirectory() || !workDir.canRead())) workDir = workDir.getParentFile();
+      ProcessBuilder builder = new ProcessBuilder(argv).redirectErrorStream(true);
+      if (workDir != null) {
+        builder.directory(workDir);
+        builder.environment().put("PWD", workDir.getAbsolutePath());
+      }
+      p = builder.start();
       p.getOutputStream().close(); // no terminal/stdin is attached
       final InputStream in = p.getInputStream();
       final ByteArrayOutputStream captured = new ByteArrayOutputStream();

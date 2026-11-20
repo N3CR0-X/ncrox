@@ -7,7 +7,7 @@ Os comandos vigia, oraculo, bastiao e selo mostram suas artes em UTF-8 antes do 
 
 ## Catálogo da Store: 100 pacotes individuais
 
-A Satanachia Store inclui [100 pacotes em ZIPs separados](store/catalogo.md): ferramentas gerais de desenvolvimento, bibliotecas Python, editores, terminal, arquivos e rede básica. Cada ZIP contém instruções e um instalador que usa `pkg` no Termux, `apt` no Debian/Parrot ou `pacman` no Arch existente. A lista não é literalmente o catálogo inteiro dessas distribuições; disponibilidade/nome varia conforme release, arquitetura e repositórios. Não são imagens completas de sistemas operacionais nem ferramentas que o APK instala dentro de si. Leia `store/catalogo.md` e o `LEIA-ME.md` do pacote antes de executar `bash install.sh`.
+A Satanachia Store inclui [100 pacotes em ZIPs separados](store/catalogo.md): ferramentas gerais de desenvolvimento, bibliotecas Python, editores, terminal, arquivos e rede básica. Cada ZIP tem instruções e um instalador para rodar dentro do Termux, Debian/Parrot ou Arch. Extraí-lo no Satanachia não instala o programa no APK: Android isola o app dos gerenciadores `pkg`, `apt` e `pacman`. Para instalar em Termux, rode `pkg install <pacote>` dentro do próprio Termux. A lista não é todo o catálogo dessas distribuições; nomes e disponibilidade variam por versão, arquitetura e repositórios. Leia `store/catalogo.md` e o guia antes de executar um instalador.
 
 No Satanachia: `satanachia -store`, `satanachia -pick <nome>`, `satanachia -st <nome>`. Extração não executa o instalador. Bibliotecas Python são instaladas em `~/.venvs/ncrox-store-python`; veja o guia de instalação do Termux abaixo.
 
@@ -76,11 +76,19 @@ deactivate
 - Senha convencional do ZIP da Store: `dev-toolsncrox`. A senha previsível não é proteção criptográfica forte; confira os arquivos e a origem antes de executar o instalador.
 
 ## Comandos do terminal
-`help` lista os comandos próprios e, no APK, indica GNU Bash 5.3 embutido. No APK também há `bash --version`, `bash -c <script>` e `bash <arquivo>`. Não existe listagem portátil de absolutamente todos os comandos: built-ins do shell e ferramentas disponíveis variam conforme o aparelho e permissões. No Android, `command -v <nome>` verifica uma ferramenta específica.
+`help` lista os comandos próprios e, no APK, indica GNU Bash 5.3 embutido. O comando `pack` consulta o catálogo oficial do Termux com `search`, `show` e `list-all` (até 100 itens). No APK também há `bash --version`, `bash -c <script>` e `bash <arquivo>`. `nano <arquivo>` abre o editor simples integrado, não o pacote GNU nano. Não existe listagem portátil de absolutamente todos os comandos: built-ins do shell e ferramentas disponíveis variam conforme o aparelho e permissões. No Android, `command -v <nome>` verifica uma ferramenta específica.
 
 ### Bash no APK Android
 
 O APK embute GNU Bash 5.3 para as arquiteturas Android arm64-v8a, armeabi-v7a, x86_64 e x86 (GPLv3-or-later; veja `android/third_party/bash/NOTICE.md`). Ele executa scripts e sintaxe Bash no sandbox do app; não instala Termux, distribuição Linux, comandos extras nem concede root. O `cd` próprio do ncrox e seus comandos Android continuam controlados pelo app. O terminal não é uma sessão interativa persistente: cada comando roda com limite de 30 s e 64 KiB de saída.
+
+### `pack`: busca no catálogo do Termux
+
+No APK, `pack` consulta pela internet o índice oficial do Termux para a arquitetura do aparelho. Dá pra usar `pack search <termo>`, `pack show <pacote>` e `pack list-all` (mostra até 100 resultados por consulta). A busca é só leitura: mostra nomes, versões e descrições vindos do repositório oficial; não instala nem altera nada.
+
+**Importante:** isso não é o `pkg` do Termux e não consegue instalar dentro do Satanachia. O Android isola os apps, e extrair `nano.zip` só deixa `install.sh` e `LEIA-ME.md` visíveis — não cria `nano` no PATH do APK. Para instalar, abra o Termux oficial e rode lá `pkg install nano`. A lista de pacotes pode mudar e depende da arquitetura e disponibilidade do repositório. `pack install/remove/upgrade` explica essa limitação e mostra o comando correspondente para rodar no Termux. A lista de instalados e os arquivos de um pacote (`pack list-installed`/`pack files`) também dependem do banco privado do Termux, então precisam ser consultados lá.
+
+Também incluí `nano <arquivo>` como editor simples integrado ao Satanachia para abrir e salvar arquivos acessíveis ao app; ele não é o GNU nano.
 
 ### Android
 - `flash -on`, `flash -off`, `flash -blink` (quatro flashes; intervalo de 450 ms) e `flash -os -time N` (1–300 s). Requer câmera/flash suportados e autorização do usuário.
@@ -120,4 +128,4 @@ Outros comandos da versão Python (não do APK):
 ## Permissões e limitações
 O Android pergunta por câmera/localização e usa configuração especial para acesso amplo aos arquivos. `QUERY_ALL_PACKAGES` e `MANAGE_EXTERNAL_STORAGE` são sensíveis; este APK é experimental/sideload e exige avaliação de política antes de publicação em loja. Android não oferece root, memória por processo ou encerramento arbitrário a apps comuns. Permissão de arquivos compartilhados não permite ler dados privados de outros aplicativos. Downloads de ferramentas são pacotes de terceiros do repositório e devem ser revisados antes de uso; a extração não executa arquivos.
 
-A Store atualmente contém os 100 pacotes individuais listados em `store/catalogo.md`, além de `dev-tools.zip`. Use `satanachia -store` para consultar os ZIPs publicados; a disponibilidade pode mudar.
+A Store atualmente contém os 100 pacotes individuais listados em `store/catalogo.md`, além de `dev-tools.zip`. Use `satanachia -store` para consultar os ZIPs publicados; a disponibilidade pode mudar. Os pacotes individuais trazem scripts de instalação para Termux/Linux: baixar e extrair não instala esses programas no APK. Rode o instalador dentro do Termux ou da distribuição apropriada. Para editar texto no app, use `nano <arquivo>` (editor simples integrado, não o GNU nano).

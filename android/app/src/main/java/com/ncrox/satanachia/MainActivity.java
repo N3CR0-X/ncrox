@@ -165,7 +165,43 @@ public class MainActivity extends Activity {
       return shell(command);
     }catch(Exception e){return "Erro: "+e.getMessage();}
   }
-  private String helpText(){StringBuilder b=new StringBuilder("NCROX: pwd, readmd, cd, make, tree, pick (exige git); github repo|user|releases|issues|search; flash -on|-off|-blink|-os -time 1..300; tasklist -sudozi; taskkill -sudozi <app>; avrcp; ondeuto -ip|-info; ip a, ifconfig; applist [-sudozi|-apk]; docs -<ext>; say <texto>; open -a <app>|.<app>; satanachia -store|-pick <nome>|-st <nome>; acquire/release lock; tabs; settings; clear; bash --version|-c <script>|<arquivo>.\nComandos próprios do Satanachia; GNU Bash 5.3 embutido e comandos externos disponíveis no Android:");TreeSet<String> names=new TreeSet<>();String path=System.getenv("PATH");if(path!=null)for(String dir:path.split(":")){File d=new File(dir);File[] fs=d.listFiles();if(fs!=null)for(File f:fs)if(f.isFile()&&f.canExecute())names.add(f.getName());}int n=0;for(String name:names){if(n++>=300){b.append("… lista limitada a 300 entradas");break;}if(n>1)b.append("  ");b.append(name);if(n%8==0)b.append('\n');}b.append("\nObs.: Bash não interativo, 30 s e 64 KiB por comando; apt/git não são garantidos. Visibilidade e permissões do Android limitam apps, processos e arquivos. Opções de desenvolvedor não dão root; consulte command -v <comando> para testar ferramentas.");b.append("\n\n").append(FerramentasSeguras.ajuda());return b.toString();}
+  private String helpText(){return "NCROX: pwd, readmd, cd, make, tree, pick (exige git); github repo|user|releases|issues|search; pack help|search <termo>|show <pacote>|list-all; nano <arquivo> (editor simples integrado); bash --version|-c <script>|<arquivo>; flash -on|-off|-blink|-os -time 1..300; tasklist -sudozi; taskkill -sudozi <app>; avrcp; ondeuto -ip|-info; ip a, ifconfig; applist [-sudozi|-apk]; docs -<ext>; say <texto>; open -a <app>|.<app>; satanachia -store|-pick <nome>|-st <nome>; acquire/release lock; tabs; settings; clear.\nGNU Bash 5.3 embutido no APK. `pack` consulta o catálogo oficial do Termux pela internet; não instala no APK. ZIPs extraídos não adicionam programas ao PATH do Satanachia.\nObs.: execução não interativa, 30 s e 64 KiB por comando; apt/pkg/git e ferramentas baixadas não são garantidos. Permissões e sandbox do Android limitam apps, processos e arquivos; opções de desenvolvedor não dão root.\n\n"+FerramentasSeguras.ajuda();}
+  private String packCommand(String[] a){
+    if(a.length<2||a[1].equalsIgnoreCase("help")||a[1].equalsIgnoreCase("--help")||a[1].equalsIgnoreCase("-h"))return "pack — consulta ao catálogo oficial do Termux (internet necessária).\nUso: pack search <termo> | pack show <pacote> | pack list-all\nExemplos: pack search python; pack show git; pack list-all\nEste comando não é o pkg do Termux: o APK é isolado e não pode instalar/remover programas do próprio sistema nem ler o banco de pacotes do Termux. Para instalar, abra o Termux e rode ali `pkg install <pacote>`. Fonte: packages.termux.dev/apt/termux-main; documentação: wiki.termux.com/wiki/Package_Management.";
+    String op=a[1].toLowerCase(Locale.ROOT);
+    if(op.equals("--version")||op.equals("-v"))return "pack do Satanachia 1.0 — consulta ao catálogo oficial Termux; não é o gerenciador pkg completo.";
+    if(op.equals("list-installed")||op.equals("installed"))return "Não consigo ler a lista de pacotes instalados do Termux: esse banco fica privado no outro app. Abra o Termux e rode `pkg list-installed` lá.";
+    if(op.equals("files"))return "A lista de arquivos instalados só existe no banco local do Termux. Abra o Termux e rode `pkg files <pacote>` lá.";
+    if(op.equals("install")||op.equals("in")||op.equals("uninstall")||op.equals("remove")||op.equals("upgrade")||op.equals("update")||op.equals("reinstall")||op.equals("full-upgrade")||op.equals("autoremove")||op.equals("clean"))return "No APK Satanachia, `pack "+op+"` não pode instalar nem alterar pacotes: o Android isola o app do Termux e não temos o ambiente pkg dentro do APK. Para isso, abra o Termux oficial e rode `pkg "+op+(a.length>2?" "+a[2]:"")+"` lá. `pack search/show/list-all` consulta o catálogo Termux sem instalar nada.";
+    if(op.equals("search")||op.equals("list-all")||op.equals("list")){
+      String q="";if(op.equals("search")){if(a.length<3)return "Uso: pack search <termo>";StringBuilder b=new StringBuilder();for(int i=2;i<a.length;i++){if(i>2)b.append(' ');b.append(a[i]);}q=b.toString().toLowerCase(Locale.ROOT);}
+      try{return queryTermuxPackages(q,op.equals("list-all")||op.equals("list")?100:50);}catch(Exception e){return "Não consegui consultar o índice oficial do Termux: "+e.getMessage()+"\nConfere sua conexão e tenta de novo. A fonte é packages.termux.dev; nada foi instalado.";}
+    }
+    if(op.equals("show")||op.equals("info")){
+      if(a.length<3)return "Uso: pack show <nome-do-pacote>";
+      try{return showTermuxPackage(a[2].toLowerCase(Locale.ROOT));}catch(Exception e){return "Não consegui consultar o pacote no índice oficial: "+e.getMessage()+". Nada foi instalado.";}
+    }
+    return "Ação não suportada por `pack`: "+a[1]+". Este APK só consulta o catálogo; use `pack help`. Instalação e administração têm de ser feitas dentro do Termux com `pkg`.";
+  }
+  private String termuxArch(){
+    String[] abis=Build.SUPPORTED_ABIS;for(String abi:abis){if(abi.equals("arm64-v8a"))return "aarch64";if(abi.equals("armeabi-v7a")||abi.equals("armeabi"))return "arm";if(abi.equals("x86_64"))return "x86_64";if(abi.equals("x86"))return "i686";}return "aarch64";
+  }
+  private String termuxPackagesUrl(){return "https://packages.termux.dev/apt/termux-main/dists/stable/main/binary-"+termuxArch()+"/Packages.gz";}
+  private String queryTermuxPackages(String query,int limit)throws Exception{
+    java.net.HttpURLConnection c=(java.net.HttpURLConnection)new URL(termuxPackagesUrl()).openConnection();c.setConnectTimeout(10000);c.setReadTimeout(15000);c.setRequestProperty("User-Agent","Satanachia-ncrox-pack/1.0");
+    StringBuilder out=new StringBuilder("Catálogo oficial do Termux · "+termuxArch()+" · "+(query.isEmpty()?"lista inicial de pacotes":"busca: "+query)+"\n");int found=0;String pkg=null,ver=null,desc=null;long count=0;
+    try(java.io.BufferedReader r=new java.io.BufferedReader(new java.io.InputStreamReader(new java.util.zip.GZIPInputStream(c.getInputStream()),"UTF-8"))){
+      String line;while((line=r.readLine())!=null){if(line.isEmpty()){if(pkg!=null&&(query.isEmpty()||pkg.toLowerCase(Locale.ROOT).contains(query)||(desc!=null&&desc.toLowerCase(Locale.ROOT).contains(query)))){out.append("• ").append(pkg).append(ver==null?"":" — "+ver).append(desc==null?"":"\n  "+desc).append('\n');if(++found>=limit)break;}pkg=null;ver=null;desc=null;count++;continue;}if(line.startsWith("Package: "))pkg=line.substring(9).trim();else if(line.startsWith("Version: "))ver=line.substring(9).trim();else if(line.startsWith("Description: "))desc=line.substring(13).trim();else if(line.startsWith(" ")&&desc!=null)desc+=" "+line.trim();}
+    }finally{c.disconnect();}
+    if(found==0)return "Não achei pacote "+(query.isEmpty()?"":("que combine com `"+query+"` "))+"no índice Termux consultado. Confere o nome, a arquitetura e os repositórios oficiais. Nada foi instalado.";
+    out.append("\nMostrando ").append(found);if(found>=limit)out.append(" resultados (limite da consulta)");out.append(". Consulta somente leitura; para instalar no Termux, execute ali `pkg install <nome>`.\nFonte: ").append(termuxPackagesUrl());return out.toString();
+  }
+  private String showTermuxPackage(String name)throws Exception{
+    java.net.HttpURLConnection c=(java.net.HttpURLConnection)new URL(termuxPackagesUrl()).openConnection();c.setConnectTimeout(10000);c.setReadTimeout(15000);c.setRequestProperty("User-Agent","Satanachia-ncrox-pack/1.0");StringBuilder record=new StringBuilder();boolean match=false;
+    try(java.io.BufferedReader r=new java.io.BufferedReader(new java.io.InputStreamReader(new java.util.zip.GZIPInputStream(c.getInputStream()),"UTF-8"))){String line;while((line=r.readLine())!=null){if(line.isEmpty()){if(match)return "Pacote do repositório oficial Termux\n"+record.toString().trim()+"\n\nPara instalar no Termux: `pkg install "+name+"`. `pack show` só consulta, não instala.\nFonte: "+termuxPackagesUrl();record.setLength(0);match=false;continue;}if(line.startsWith("Package: "))match=line.substring(9).trim().equals(name);if(match)record.append(line).append('\n');}}finally{c.disconnect();}
+    return "Não achei `"+name+"` no índice Termux para arquitetura "+termuxArch()+". Tenta `pack search "+name+"`.";
+  }
+
   private String readMarkdown(String[] a){if(a.length<2)return "Uso: readmd <arquivo.md>";File f=new File(cwd(),a[1]);if(!f.getName().toLowerCase(Locale.ROOT).endsWith(".md"))return "readmd: precisa de extensão .md";if(!f.isFile()||!f.canRead())return "readmd: arquivo não encontrado ou sem acesso";try{BufferedReader r=new BufferedReader(new InputStreamReader(new FileInputStream(f),"UTF-8"));StringBuilder b=new StringBuilder();String line;int n=0;while((line=r.readLine())!=null&&n++<20000){if(b.length()>0)b.append('\n');b.append(line);}r.close();if(n>=20000)b.append("\n[arquivo truncado]");return b.toString();}catch(Exception e){return "readmd: erro ao ler arquivo";}}
   private String netInfo(){try{String s=shell("ip addr");if(!s.startsWith("Erro")&&!s.contains("not found")&&!s.contains("[Código de saída:")&&!s.contains("[tempo limite"))return s;}catch(Exception ignored){}StringBuilder b=new StringBuilder();try{Enumeration<java.net.NetworkInterface> e=java.net.NetworkInterface.getNetworkInterfaces();while(e.hasMoreElements()){java.net.NetworkInterface n=e.nextElement();b.append(n.getName()).append(n.isUp()?" UP":" DOWN");Enumeration<java.net.InetAddress> ips=n.getInetAddresses();while(ips.hasMoreElements())b.append("\n  ").append(ips.nextElement().getHostAddress());b.append('\n');}}catch(Exception e){return "Não foi possível listar interfaces: "+e.getMessage();}return b.length()==0?"Nenhuma interface visível.":b.toString();}
   private String flashCommand(String[] a){if(a.length<2)return "Uso: flash -on | -off | -blink | -os -time 1..300";if(cameraId==null)return "Este aparelho não expõe flash compatível.";if(checkSelfPermission("android.permission.CAMERA")!=PackageManager.PERMISSION_GRANTED){runOnUiThread(()->requestPermissions(new String[]{"android.permission.CAMERA"},410));return "Autorize a câmera para usar o flash e repita o comando.";}if(a[1].equalsIgnoreCase("-on")){torch(true);return "Flash ligado";}if(a[1].equalsIgnoreCase("-off")){torch(false);return "Flash desligado";}if(a[1].equalsIgnoreCase("-blink")){for(int i=0;i<8;i++){final boolean on=i%2==0;mainHandler.postDelayed(()->torch(on),i*450L);}mainHandler.postDelayed(()->torch(false),8*450L);return "Flash: quatro piscadas, depois desligado";}if(a.length>=4&&a[1].equalsIgnoreCase("-os")&&a[2].equalsIgnoreCase("-time")){try{int sec=Integer.parseInt(a[3]);if(sec<1||sec>300)return "Tempo permitido: 1 a 300 segundos";torch(true);mainHandler.postDelayed(()->torch(false),sec*1000L);return "Flash ligado por "+sec+" s";}catch(NumberFormatException e){return "Informe o tempo em segundos (1–300)";}}return "Uso: flash -on | -off | -blink | -os -time 1..300";}
@@ -246,9 +282,39 @@ public class MainActivity extends Activity {
     if(file.length()>=2&&((file.charAt(0)=='\''&&file.charAt(file.length()-1)=='\'')||(file.charAt(0)=='\"'&&file.charAt(file.length()-1)=='\"')))file=file.substring(1,file.length()-1);
     return ShellRunner.runDirect(new String[]{bash.getAbsolutePath(),file},cwd(),30000);
   }
+  private String openTextEditor(String command){
+    String arg=command.length()>4?command.substring(4).trim():"";
+    if(arg.isEmpty())return "Uso: nano <arquivo> — abre o editor simples integrado do Satanachia; não é o GNU nano.";
+    if(arg.length()>1&&((arg.startsWith("\'")&&arg.endsWith("\'"))||(arg.startsWith("\"")&&arg.endsWith("\""))))arg=arg.substring(1,arg.length()-1);
+    File file=new File(cwd(),arg);
+    if(file.isDirectory())return "nano: esse caminho é uma pasta, não um arquivo.";
+    if(file.exists()&&!file.isFile())return "nano: não é um arquivo normal.";
+    if(file.exists()&&file.length()>1024L*1024L)return "nano: por segurança, o editor integrado abre arquivos de até 1 MiB.";
+    runOnUiThread(()->showTextEditor(file));
+    return "Editor simples aberto para "+file.getPath()+". Toque em Salvar para gravar.";
+  }
+  private void showTextEditor(File file){
+    try{
+      String initial="";
+      if(file.exists())try(InputStream in=new FileInputStream(file);ByteArrayOutputStream out=new ByteArrayOutputStream()){
+        byte[] buf=new byte[8192];int n;while((n=in.read(buf))!=-1){if(out.size()+n>1024*1024){Toast.makeText(this,"Arquivo maior que 1 MiB.",Toast.LENGTH_LONG).show();return;}out.write(buf,0,n);}initial=out.toString("UTF-8");
+      }
+      EditText editor=new EditText(this);editor.setText(initial);editor.setTextColor(fg);editor.setHintTextColor(Color.GRAY);editor.setTypeface(Typeface.MONOSPACE);editor.setTextSize(14);editor.setGravity(Gravity.TOP|Gravity.LEFT);editor.setSingleLine(false);editor.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE|InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);editor.setPadding(dp(12),dp(10),dp(12),dp(10));editor.setMinHeight(dp(300));
+      ScrollView sc=new ScrollView(this);sc.addView(editor);LinearLayout box=new LinearLayout(this);box.setOrientation(LinearLayout.VERTICAL);TextView note=new TextView(this);note.setText("Editor simples integrado · não é o GNU nano · limite de 1 MiB");note.setTextColor(fg);note.setPadding(dp(12),dp(8),dp(12),dp(8));box.addView(note);box.addView(sc,new LinearLayout.LayoutParams(-1,dp(360)));
+      AlertDialog dialog=new AlertDialog.Builder(this).setTitle(file.getName().isEmpty()?"Novo arquivo":file.getName()).setView(box).setNegativeButton("Cancelar",(d,w)->{}).setPositiveButton("Salvar",null).create();
+      dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(b->{try{
+        if(editor.length()>1024*1024){Toast.makeText(this,"O texto excede o limite de 1 MiB.",Toast.LENGTH_LONG).show();return;}
+        File parent=file.getCanonicalFile().getParentFile();if(parent==null||!parent.isDirectory()){Toast.makeText(this,"A pasta de destino não existe ou não está acessível.",Toast.LENGTH_LONG).show();return;}
+        try(FileOutputStream out=new FileOutputStream(file)){out.write(editor.getText().toString().getBytes(StandardCharsets.UTF_8));}
+        dialog.dismiss();Toast.makeText(this,"Arquivo salvo: "+file.getName(),Toast.LENGTH_SHORT).show();
+      }catch(Exception e){Toast.makeText(this,"Não consegui salvar: "+e.getMessage(),Toast.LENGTH_LONG).show();}}));
+      dialog.show();
+    }catch(Exception e){Toast.makeText(this,"Não consegui abrir o arquivo: "+e.getMessage(),Toast.LENGTH_LONG).show();}
+  }
   private String shell(String cmd){
     File bash=bundledBash();
-    if(bash.isFile()&&bash.canExecute())return ShellRunner.run(bash.getAbsolutePath(),cmd,cwd(),30000);
+    String userCmd="function command_not_found_handle(){ printf 'Comando não encontrado: %s. ZIP extraído não instala ferramenta no APK; para usar o pacote, rode o instalador no Termux.\\n' \"$1\" >&2; return 127; }; "+cmd;
+    if(bash.isFile()&&bash.canExecute())return ShellRunner.run(bash.getAbsolutePath(),userCmd,cwd(),30000);
     return "GNU Bash deste APK não está disponível para esta arquitetura; usando o shell do Android.\n"+ShellRunner.run("/system/bin/sh",cmd,cwd(),30000);
   }
 

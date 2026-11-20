@@ -36,6 +36,16 @@ public final class ShellRunnerTest {
       s = ShellRunner.run(bash.getAbsolutePath(), "[[ 7 -gt 4 ]] && a=(um dois) && printf '%s:%s' \"${a[0]}\" \"${a[1]}\"", dir, 5000);
       check(s.equals("um:dois"), "Bash arrays and [[ ]] syntax");
     }
+    File gone = new File(dir, "ncrox-vanished-cwd-test");
+    check(gone.mkdir(), "create temporary stale-cwd test directory");
+    check(gone.delete(), "remove stale-cwd test directory");
+    s = ShellRunner.run(sh, "pwd", gone, 5000);
+    check(s.equals(dir.getAbsolutePath()), "deleted current directory falls back to existing parent");
+    File bash = new File("/bin/bash");
+    if (bash.canExecute()) {
+      s = ShellRunner.run(bash.getAbsolutePath(), "[[ 7 -gt 4 ]] && a=(um dois) && printf '%s:%s' \"${a[0]}\" \"${a[1]}\"", dir, 5000);
+      check(s.equals("um:dois"), "Bash arrays and [[ ]] syntax");
+    }
     System.out.println("OK: " + tests + " checks");
   }
 }
