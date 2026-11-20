@@ -9,9 +9,13 @@ import java.util.concurrent.TimeUnit;
 final class ShellRunner {
   static final int OUTPUT_LIMIT = 65536;
   static String run(String shell, String command, File cwd, long timeoutMillis) {
+    return runDirect(new String[]{shell, "-c", command}, cwd, timeoutMillis);
+  }
+
+  static String runDirect(String[] argv, File cwd, long timeoutMillis) {
     Process p = null;
     try {
-      p = new ProcessBuilder(shell, "-c", command).directory(cwd).redirectErrorStream(true).start();
+      p = new ProcessBuilder(argv).directory(cwd).redirectErrorStream(true).start();
       p.getOutputStream().close(); // no terminal/stdin is attached
       final InputStream in = p.getInputStream();
       final ByteArrayOutputStream captured = new ByteArrayOutputStream();

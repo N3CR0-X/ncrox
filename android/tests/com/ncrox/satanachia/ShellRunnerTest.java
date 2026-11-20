@@ -31,6 +31,11 @@ public final class ShellRunnerTest {
     begin = System.nanoTime();
     s = ShellRunner.run(sh, "sleep 3 & printf done", dir, 5000);
     check(s.contains("done") && (System.nanoTime()-begin)/1000000 < 2500, "inherited pipe does not block forever");
+    File bash = new File("/bin/bash");
+    if (bash.canExecute()) {
+      s = ShellRunner.run(bash.getAbsolutePath(), "[[ 7 -gt 4 ]] && a=(um dois) && printf '%s:%s' \"${a[0]}\" \"${a[1]}\"", dir, 5000);
+      check(s.equals("um:dois"), "Bash arrays and [[ ]] syntax");
+    }
     System.out.println("OK: " + tests + " checks");
   }
 }
