@@ -28,8 +28,9 @@ jobs:
       - name: Test command runner on build host
         run: |
           mkdir -p /tmp/ncrox-tests
-          javac -d /tmp/ncrox-tests android/app/src/main/java/com/ncrox/satanachia/ShellRunner.java android/tests/com/ncrox/satanachia/ShellRunnerTest.java
+          javac -d /tmp/ncrox-tests android/app/src/main/java/com/ncrox/satanachia/ShellRunner.java android/app/src/main/java/com/ncrox/satanachia/ShellSession.java android/tests/com/ncrox/satanachia/ShellRunnerTest.java android/tests/com/ncrox/satanachia/ShellSessionTest.java
           java -cp /tmp/ncrox-tests com.ncrox.satanachia.ShellRunnerTest
+          java -cp /tmp/ncrox-tests com.ncrox.satanachia.ShellSessionTest
       - name: Build APK
         working-directory: android
         run: gradle --no-daemon assembleDebug

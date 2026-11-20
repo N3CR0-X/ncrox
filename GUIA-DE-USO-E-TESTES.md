@@ -7,7 +7,7 @@ Este guia vale para o código atual do repositório. As funções variam entre o
 - **Windows:** execute `Satanachia-ncrox.exe`.
 - **Termux/Linux/macOS:** abra a pasta do projeto e execute `python satanachia.py`.
 - **Interface gráfica Python:** `python satanachia.py --gui` (precisa de Tk instalado).
-- **Android:** instale o APK e abra o app. Ele usa o shell e as permissões do próprio Android; não é uma distribuição Linux/Termux e não tem root.
+- **Android:** instale o APK e abra o app. Ele usa Bash 5.3 numa sessão persistente independente por aba e as permissões do próprio Android; não é uma distribuição Linux/Termux e não tem root nem PTY. O comando `pkg` pode encaminhar ações limitadas ao Termux instalado via interface oficial RUN_COMMAND; a instalação continua no prefixo privado do Termux. Integração requer permissão RUN_COMMAND e `allow-external-apps=true` na configuração do Termux.
 
 Comece com:
 
@@ -16,7 +16,7 @@ help
 pwd
 ```
 
-`help` apresenta os comandos próprios e suas descrições; o shell também pode executar comandos instalados no sistema. A disponibilidade muda conforme aparelho, sistema, permissões e programas instalados.
+`help` apresenta os comandos próprios e executáveis de sistema disponíveis. No Android, comandos externos usam uma sessão Bash persistente por aba: variáveis, funções e `cd` do Bash ficam naquela aba. É stdin não interativo, sem PTY, limite 30 s/64 KiB; `vim`/`top` e programas que pedem input interativo não são garantidos. O Bash vê `$HOME/usr/bin` privado do app e o PATH do Android; não vê o prefixo privado do Termux.
 
 ## 2. Comandos próprios — Python, Windows, Linux, macOS e Termux
 
@@ -45,7 +45,7 @@ pwd
 - Ferramentas de auditoria autorizada: `vigia <host> [portas]`, `oraculo <domínio>`, `bastiao <host> [porta]`, `selo <arquivo> [sha256]`. Use apenas seus próprios sistemas/arquivos ou alvos com autorização explícita.
 - Utilidades Python extras: `hash <arquivo>`, `disk [caminho]`, `sysinfo`, `which <programa>`, `where <programa>`, `findtext <texto> <arquivo>`, `fileinfo <caminho>`, `netcheck <host> <porta>`, `uuid`, `rede <IP/CIDR>`, `base64 codificar|decodificar <texto>`, `urlinfo <URL>`, `jsoncheck <arquivo>` e `comparar <arquivo1> <arquivo2>`.
 
-**Observação de plataforma:** o APK não inclui Python nem Git. Comandos de utilidade Python podem não existir no Android. `pick` no APK depende de haver um executável `git` acessível ao app; não há garantia disso e o APK não instala Git por conta própria. Se `pick` responder que `git` não existe, isso é uma limitação do ambiente, não falha de sintaxe. Os comandos `github ...` fazem consultas pela API e são uma alternativa de teste de rede/API, mas não clonam o código.
+**Observação de plataforma:** o APK não inclui Python nem Git. Comandos de utilidade Python podem não existir no Android. `pick` no APK depende de haver um executável `git` acessível ao app; não há garantia disso e o APK não instala Git por conta própria. `pkg` pode despachar ações de gerenciamento ao Termux se ele estiver instalado, com RUN_COMMAND autorizado e `allow-external-apps=true`; isso não instala ferramentas no Satanachia. Se `pick` responder que `git` não existe, isso é uma limitação do ambiente, não falha de sintaxe. Os comandos `github ...` fazem consultas pela API e são uma alternativa de teste de rede/API, mas não clonam o código.
 
 ## 3. Roteiro de teste básico
 
@@ -131,3 +131,7 @@ Os testes de rede locais precisam conseguir abrir sockets de loopback e podem fa
 ## 8. Como relatar um resultado
 
 Anote: sistema/aparelho, versão do app ou build, comando digitado, saída completa e se uma permissão foi concedida. Remova tokens, senhas, dados pessoais e endereços/IP privados antes de compartilhar logs. Não publique informações de localização.
+
+## Teste rápido do shell persistente e do encaminhador pkg
+
+No APK buildado, use uma linha por vez: `export NCROX_TEST=ok`, depois `printf '%s\n' "$NCROX_TEST"` — deve mostrar `ok` na mesma aba. Em seguida `cd /storage/emulated/0` (com a permissão já concedida), `pwd` e `start`; na aba nova, a variável da aba anterior não deve existir. `pkg help` mostra as ações encaminháveis. Com Termux instalado, habilite `allow-external-apps=true`, autorize RUN_COMMAND ao Satanachia e teste `pkg search git`; para instalação real, `pkg install nano` abre confirmação no Termux. Confira dentro do Termux com `pkg list-installed`. Isso testa o encaminhamento, não instala o GNU nano dentro do Satanachia.
