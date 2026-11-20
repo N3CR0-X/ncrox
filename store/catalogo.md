@@ -122,6 +122,7 @@ Abra a pasta extraída no Termux/Debian/Parrot/Arch, confira `LEIA-ME.md` e, se 
 - `util-linux` — [ZIP](./util-linux.zip)
 - `ncdu` — [ZIP](./ncdu.zip)
 - `dust` — [ZIP](./dust.zip)
+- `which` — [ZIP](./which.zip)
 
 ### Rede geral e sincronização
 
